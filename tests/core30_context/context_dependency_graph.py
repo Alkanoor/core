@@ -1,12 +1,11 @@
 #####################
-# this must test:
+# This must test:
 # * multithread use of the dependency graph (shared until thread split, then 2 branches: one main, one other thread)
 # * producer missing (dependency not fulfilled) exception
 # * cyclic dependencies' exception
 # * type incompatibility between producer and consumer
 # * dynamic lack of produced attribute after production
 # * redeclaration of a producer or a consumer for a function with the same name + module
-
 
 from core.core30_context.context_dependency_graph import context_producer, context_dependencies
 
@@ -133,6 +132,41 @@ def test6():
     print(big_consumer_for_acyclic_dep('ok'))
 
 
+# now test the multithread aspect (both on context and graphs)
+def todo_in_not_main_thread(*args):
+    # print("Registering only at start of thread")
+    @context_producer(('.a.j', str))
+    @context_dependencies(('.a.i', str))
+    def produce_j(ctxt):
+        print("ok for feeding with .a.j in thread")
+        ctxt['a']['j'] = f"JJJJJ in thread -> {ctxt['a']['i']}"
+    @context_producer(('.a.k', str))
+    @context_dependencies(('.a.j', str))
+    def produce_k(ctxt, *args):
+        print("ok for feeding with .a.k in thread")
+        ctxt['a']['k'] = f"kkk in thread ({ctxt['a']['j']}) + {args}"
+
+    from core.core30_context.context import current_ctxt
+    produce_k(*args)
+    print(current_ctxt())
+
+
+def todo_in_main_thread():
+    @context_producer(('.a.j', str))
+    @context_dependencies(('.a.g2', str))
+    def produce_j(ctxt):
+        print("ok for feeding with .a.j in main")
+        ctxt['a']['j'] = f"JJJJJ in main -> {ctxt['a']['g2']}"
+
+    from core.core30_context.context import current_ctxt
+    from time import sleep
+    produce_j()
+    produce_j()
+    sleep(0.1)
+    produce_j()
+    print(current_ctxt())
+
+
 if __name__ == '__main__':
     test1()
     try:
@@ -149,3 +183,12 @@ if __name__ == '__main__':
     except AssertionError:
         print('Test5 ok (cyclic dependency)')
     test6()
+
+    import threading
+    t = threading.Thread(target=todo_in_not_main_thread, args=(3,))
+    t.start()
+
+    import time
+    time.sleep(2)
+    todo_in_main_thread()
+    t.join()

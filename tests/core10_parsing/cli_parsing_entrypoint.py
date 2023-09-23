@@ -1,5 +1,6 @@
 from core.core10_parsing.cli.registry import command_registry
 
+
 print(command_registry)
 
 x = command_registry['mgr']['parser'].parse_known_args()
