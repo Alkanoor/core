@@ -1,11 +1,12 @@
 # from ...core30_context.context_dependency_graph import context_producer
+from ...core30_context.context import Context
 
-from typing import Dict, Any, Callable
+# from typing import Dict, Any, Callable
 import copy
 
 
 # this is very basic to copy the context between threads (it should remove all objects linked to the current thread)
-def default_thread_context_copy(ctxt: Dict[str, Any]):
+def default_thread_context_copy(ctxt: Context):
     return {
         k: copy.deepcopy(v) for k, v in ctxt.items() if k not in ['persistent']
     }

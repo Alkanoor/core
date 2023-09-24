@@ -118,11 +118,12 @@ class ThreadSafeDependencyManager:
             def f_producing_expected(*args, **argv):
                 # in fact this should be f(context) as we have no clue of which arguments to provide recursively
                 # in the graph to construct the right result
-                result = f(current_ctxt(), *args, **argv)
+                context = current_ctxt()
+                result = f(context, *args, **argv)
                 if not self.context_nodes[key]['production_ok']:
                     if assert_done or assert_types:
                         for attributes_string, expected_type in products:
-                            success, value = check_dict_against_attributes_string(current_ctxt(), attributes_string)
+                            success, value = check_dict_against_attributes_string(context, attributes_string)
                             assert success, f"Expected function to produce {attributes_string}, unable to reach {value}"
                             if assert_types:
                                 # TODO: proper type validation, as types with [] not handled (raises exception)

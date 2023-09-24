@@ -51,6 +51,7 @@ subparsers = {
         'description': 'Use the target configuration as default',
         'arguments': arguments_use,
     },
+    # TODO: implement encrypted config, with encryption/decryption functions, policies to decrypt
 }
 
 def deal_with_parsed_data_and_continue_parsing(ctxt: Dict[str, Any], parsed_data: Namespace):

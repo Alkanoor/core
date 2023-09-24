@@ -3,7 +3,7 @@ from core.core31_policy.exception.strictness import raise_exception
 
 
 if __name__ == '__main__':
-    from core.core30_context.log.logger import get_logger
+    from core.core20_messaging.log.logger import get_logger
     import logging
 
     logger = get_logger('main')

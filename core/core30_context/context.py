@@ -2,7 +2,9 @@
 from ..core31_policy.thread.copy import default_thread_context_copy
 # from .context_dependency_graph import try_resolve
 
+from typing import Dict, Any
 import threading
+
 
 _global_current_ctxt = {}  # this is only to be modified in the main thread, calling the context() function
 _thread_local = threading.local()
@@ -28,5 +30,7 @@ def current_ctxt():
             # _thread_local.current_ctxt = callback(_global_current_ctxt)
         return _thread_local.current_ctxt
 
+
+Context = Dict[str, Any]
 
 from .imports import *

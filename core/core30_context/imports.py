@@ -1,6 +1,5 @@
 
-# this aims to import (automatically or manually) all known locations for policies
+# this aims to import (automatically or manually) all known locations for contexts
 # in order not to create imports at other locations (but this may be discussed)
 
 
-import core.core31_policy.thread.copy

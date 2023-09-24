@@ -37,5 +37,5 @@ def register_simple_parsing(command: str,
 #     for command_name in command_registry:
 #         built_from = command_registry[command_name]
         #PARSING_ARGUMENTS.GET_CREATE(...)
-        #PARSING_subparsers.GET_CREATE(...)
+        #PARSING_SUBPARSERS.GET_CREATE(...)
     #...
