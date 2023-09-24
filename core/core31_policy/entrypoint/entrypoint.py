@@ -1,6 +1,10 @@
-from .initialization import init_policy
+from ...core30_context.context_dependency_graph import context_dynamic_producer
+from ...core10_parsing.cli.registry import command_registry
+from ...core10_parsing.cli.simple_parse import simple_parse
+from ...core30_context.context import current_ctxt, Context
 
 import regex
+import sys
 import os
 
 
@@ -12,10 +16,22 @@ def parse_environment(env_regex):
     return result
 
 
-@init_policy
-def entrypoint():
+@context_dynamic_producer(('.interactor.local', bool), ('.interactor.type', str))
+def entrypoint(ctxt: Context):
+    ctxt.setdefault('interactor', {}).update({
+        'local': True,
+        'type': 'cli'
+    })
+
     # parse args until first positional argument
-    base_options = parse_args()
+    parsed_dict = simple_parse(sys.argv[1:])
+    print(parsed_dict)
+
+    if 'mgr' in parsed_dict:  # global configuration in this case, the
+        command_registry['mgr']['callback'](parsed_dict['mgr'])
+
+    print(current_ctxt())
+
     # parse config
     if base_options.config:
         config_file = base_options.config

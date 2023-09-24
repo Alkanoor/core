@@ -1,6 +1,6 @@
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string
 
-from typing import List, Callable, Any, Tuple, Type
+from typing import List, Callable, Any, Tuple, Type, Union
 from functools import wraps
 import networkx as nx
 import threading
@@ -45,18 +45,19 @@ class ThreadSafeDependencyManager:
         return key, self.context_nodes[key]['index']
 
     # the function below aims at handling the dependencies graph (resolving when needed)
-    def context_dependencies(self, *deps: List[Tuple[str, Type]]):
+    def context_dependencies(self, *deps: List[Union[Tuple[str, Type], Tuple[str, Type, bool]]]):
         def sub(f: Callable[[...], Any]):
             key, node_target_index = self.add_node_if_not_existing(f)
 
             assert 'dependencies' not in self.context_nodes[key], f"Dependencies for {key} already registered"
             self.context_nodes[key].update({
-                'dependencies': {d_name: d_type
-                                 for d_name, d_type in deps},  # dependencies are for checking type coherence
+                'dependencies': {dep[0]: dep[1:]
+                                 for dep in deps},  # dependencies are for checking type coherence and needing producer
                 'dependencies_ok': False,  # only these 2 variables are used below
                 'dependencies_doing': False,  # this one intends to prevent cycles in dependencies graph
             })
-            for dep_name, _ in deps:
+            for dep in deps:
+                dep_name = dep[0]
                 assert dep_name[0] == '.', f"Value to produce {dep_name} not starting with dot (pyjq like)"
                 self.context_consumers.setdefault(dep_name, []).append(node_target_index)
                 if dep_name in self.context_producers:
@@ -69,22 +70,30 @@ class ThreadSafeDependencyManager:
                         f"Cycle encountered at {key} for producing {self.context_nodes[key].get('products', '?')}"
                     self.context_nodes[key][
                         'dependencies_doing'] = True  # indicates we are walking on dependencies recursively
-                    for attributes_string, expected_type in deps:
-                        assert attributes_string in self.context_producers, f"No context producer registered to craft " \
-                                                                            f"{attributes_string}, please register one"
-                        producer_name = self.context_dependencies_graph.nodes[
-                            self.context_producers[attributes_string]
-                        ]['name']
-                        producer_node = self.context_nodes[producer_name]
-                        # check type coherence between producer and consumer
-                        assert producer_node['products'][attributes_string] == expected_type, \
-                            f"Incompatible types between expected dependency {expected_type} and produced " \
-                            f"{producer_node['products'][attributes_string]}"
+                    for dep in deps:
+                        if len(dep) == 2:
+                            attributes_string, expected_type = dep
+                            needing_a_fixed_producer = True
+                        else:
+                            attributes_string, expected_type, needing_a_fixed_producer = dep
+                        if needing_a_fixed_producer:
+                            assert attributes_string in self.context_producers,\
+                                f"No context producer registered to craft {attributes_string}, please register one"
 
-                        # this must have been registered from a known producer so the optional assert_types
-                        # and assert_done are handled by it, but trust the production_ok variable to avoid recomputing
-                        if not producer_node['production_ok']:
-                            producer_node['produce_function']()
+                        if needing_a_fixed_producer or attributes_string in self.context_producers:
+                            producer_name = self.context_dependencies_graph.nodes[
+                                self.context_producers[attributes_string]
+                            ]['name']
+                            producer_node = self.context_nodes[producer_name]
+                            # check type coherence between producer and consumer
+                            assert producer_node['products'][attributes_string] == expected_type, \
+                                f"Incompatible types between expected dependency {expected_type} and produced " \
+                                f"{producer_node['products'][attributes_string]}"
+
+                            # this must have been registered from a known producer so the optional assert_types and
+                            # assert_done are handled by it, but trust the production_ok variable to avoid recomputing
+                            if not producer_node['production_ok']:
+                                producer_node['produce_function']()
                     self.context_nodes[key]['dependencies_ok'] = True
                     self.context_nodes[key]['dependencies_doing'] = False
                 # if the function is not both a consumer and a producer, we add the context (otherwise the producer will do)
@@ -95,6 +104,18 @@ class ThreadSafeDependencyManager:
 
         return sub
 
+
+    def _assert_production(self, key, products, context, assert_done, assert_types):
+        if not self.context_nodes[key]['production_ok']:
+            if assert_done or assert_types:
+                for attributes_string, expected_type in products:
+                    success, value = check_dict_against_attributes_string(context, attributes_string)
+                    assert success, f"Expected function to produce {attributes_string}, unable to reach {value}"
+                    if assert_types:
+                        # TODO: proper type validation, as types with [] not handled (raises exception)
+                        assert isinstance(value, expected_type), f"Bad produced type {type(value)} instead of " \
+                                                                 f"{expected_type}"
+            self.context_nodes[key]['production_ok'] = True
 
     def context_producer(self, *products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
         def sub(f: Callable[[...], Any]):
@@ -120,20 +141,37 @@ class ThreadSafeDependencyManager:
                 # in the graph to construct the right result
                 context = current_ctxt()
                 result = f(context, *args, **argv)
-                if not self.context_nodes[key]['production_ok']:
-                    if assert_done or assert_types:
-                        for attributes_string, expected_type in products:
-                            success, value = check_dict_against_attributes_string(context, attributes_string)
-                            assert success, f"Expected function to produce {attributes_string}, unable to reach {value}"
-                            if assert_types:
-                                # TODO: proper type validation, as types with [] not handled (raises exception)
-                                assert isinstance(value, expected_type), f"Bad produced type {type(value)} instead of " \
-                                                                         f"{expected_type}"
-                    self.context_nodes[key]['production_ok'] = True
+                self._assert_production(key, products, context, assert_done, assert_types)
                 return result
 
             # this way the caller can resolve dependency, and it follows the production checks
             self.context_nodes[key].update({'produce_function': f_producing_expected})
+
+            return f_producing_expected
+
+        return sub
+
+
+    def context_dynamic_producer(self, *products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
+        def sub(f: Callable[[...], Any]):
+            key, node_source_index = self.add_node_if_not_existing(f)
+
+            assert 'products' not in self.context_nodes[key], f"Dynamic producer for {key} already registered"
+            self.context_nodes[key].update({
+                'products': {pname: ptype for pname, ptype in products},
+                'production_ok': False,
+            })
+            for product_name, _ in products:
+                assert product_name[0] == '.', f"Value to produce {product_name} not starting with dot (pyjq like)"
+
+            @wraps(f)
+            def f_producing_expected(*args, **argv):
+                # in fact this should be f(context) as we have no clue of which arguments to provide recursively
+                # in the graph to construct the right result
+                context = current_ctxt()
+                result = f(context, *args, **argv)
+                self._assert_production(key, products, context, assert_done, assert_types)
+                return result
 
             return f_producing_expected
 
@@ -147,14 +185,25 @@ class ThreadSafeDependencyManager:
         return {dep_name: producers[dep_name]['produce_function'] for dep_name in dep_names}
 
 
-def context_dependencies(*deps: List[Tuple[str, Type]]):
+    def is_producer(self, function_key: str):
+        return self.context_nodes[function_key].get('produce_function', None)
+
+
+def context_dependencies(*deps: List[Union[Tuple[str, Type], Tuple[str, Type, bool]]]):
     return ThreadSafeDependencyManager().context_dependencies(*deps)
 
 def context_producer(*products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
     return ThreadSafeDependencyManager().context_producer(*products, assert_done=assert_done, assert_types=assert_types)
 
+def context_dynamic_producer(*products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
+    return ThreadSafeDependencyManager().context_dynamic_producer(*products,
+                                                                  assert_done=assert_done, assert_types=assert_types)
+
 def try_resolve(*dep_names: List[str]):
     return ThreadSafeDependencyManager().try_resolve(*dep_names)
+
+def is_context_producer(function_key: str):  # function_key is f.__module__ + . + f.__name__
+    return ThreadSafeDependencyManager().is_producer(function_key)
 
 
 from .context import current_ctxt

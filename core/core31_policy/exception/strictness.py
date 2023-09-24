@@ -1,6 +1,9 @@
-from ..entrypoint.initialization import init_policy
+from ...core11_config.config import register_config_default, Config, config_dependencies
+from ...core30_context.context_dependency_graph import context_dependencies
+from ...core30_context.context import Context
+from .format import format_exception
 
-from typing import Dict, Any
+from logging import Logger
 from enum import Enum
 import traceback
 
@@ -10,18 +13,21 @@ class ExceptionLevel(Enum):
     LAX = 2     # at least produce some warning but keep going
     STRICT = 3  # raise the exception no matter what
 
-@init_policy
-def init(ctxt: Dict[str, Any]):
-    return register_config(ctxt, '.exeception.level', ExceptionLevel)
+register_config_default('.exception.level', ExceptionLevel, ExceptionLevel.LAX)
 
 
-#@config_dependancies('.exeception.level')
-#@context_dependancies('.log.logger', '.log.debug_logger', '.exception.format')
-def raise_exception(ctxt: Dict[str, Any], msg: str):
-    if ctxt['config']['exception']['level'].lower() == ExceptionLevel.STRICT.name.lower():
+#@register_policy('.exception.raise_exception')
+@config_dependencies(('.exception.level', ExceptionLevel))
+@context_dependencies(('.log.main_logger', Logger), ('.log.debug_logger', Logger | None))
+def raise_exception(ctxt: Context, config: Config, msg: str):
+    if config['exception']['level'] == ExceptionLevel.STRICT:
         raise Exception(msg)
+    elif config['exception']['level'] == ExceptionLevel.LAX or config['exception']['level'] == ExceptionLevel.IGNORE:
+        if config['exception']['level'] == ExceptionLevel.LAX:
+            ctxt['log']['main_logger'].warning(msg)
+        if ctxt['log']['debug_logger']:
+            ctxt['log']['debug_logger'].debug(
+                format_exception(traceback.extract_stack(), msg)
+            )
     else:
-        ctxt['policy']['log']['logger'].warning(msg)
-        ctxt['policy']['log']['debug_logger'].debug(
-            ctxt['policy']['exception']['format'](traceback.extract_stack(), msg)
-        )
+        raise Exception(f"Exception level {config['exception']['level']} not known (should be valid {ExceptionLevel})")

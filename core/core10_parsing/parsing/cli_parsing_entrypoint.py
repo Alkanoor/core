@@ -16,8 +16,8 @@ arguments = [
                             'choices': ['error', 'warning', 'info', 'debug']}),
     (['--database', '-d'], {'help': 'Specify the database holding all the application state (including contexts)'}),
     (['--envregex', '-e'], {'help': 'Specify the environment regex to get environment variables into config (default is'
-                                    ' \\.?config\\.*)',
-                            'default': '\\.?config\\.*'}),
+                                    ' ^\\.?config(\\..*)$ )',
+                            'default': '^\\.?config(\\..*)$'}),
     (['--set'], {'help': 'Additional configuration options',
                  'metavar': 'KEY=VALUE',
                  'action': 'append'}),
@@ -38,7 +38,7 @@ different_matching = {
 #                  '.additional_options')
 def deal_with_parsed_data(parsed_data: Namespace):
     enrich_config({
-        f".{k}": different_matching.get(v, k) for k, v in parsed_data.__dict__
+        f".{k}": different_matching.get(k, v) for k, v in parsed_data.__dict__.items()
     })
 
 # initial CLI entrypoint allowing to switch config

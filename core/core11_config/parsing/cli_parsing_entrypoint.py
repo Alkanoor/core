@@ -9,11 +9,9 @@ arguments_show = [
 ]
 
 arguments_set = [
-    (['--subconfig', '-sc'], {'help': 'Sub-configuration block to set (default to default)',
-                              'default': 'default'}),
+    (['--subconfig', '-sc'], {'help': 'Sub-configuration block to set (default to default)'}),
     (['--loglevel', '-l'], {'help': 'Global logger value',
-                            'choices': ['error', 'warning', 'info', 'debug'],
-                            'default': 'info'}),
+                            'choices': ['error', 'warning', 'info', 'debug']}),
     (['--database', '-d'], {'help': 'Global database holding all the application state (including further contexts)'}),
     (['--set'], {'help': 'Additional configuration options',
                  'action': 'append'}),

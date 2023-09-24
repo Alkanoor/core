@@ -4,6 +4,7 @@ from ...core30_context.context import Context
 from os import path
 
 
+#@register_policy('.config.default_config_paths')
 @context_dependencies('.executor.os')
 def default_config_paths(ctxt: Context):
     if 'win' in ctxt['executor']['os']:

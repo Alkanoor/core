@@ -1,8 +1,10 @@
+from ...core11_config.config import config_dependencies, Config
+
 import logging
 
 
 @config_dependencies(('.log.log_level', int))
-def get_logger(config: Config, name):
+def get_logger(config: Config, name: str):
     logger = logging.getLogger(name)
 
     handler = logging.StreamHandler()

@@ -1,4 +1,10 @@
-from typing import Dict, Any
+from ...core11_config.config import register_config_default, config_dependencies, Config
+from ...core30_context.context_dependency_graph import context_dependencies
+from ..exception.strictness import ExceptionLevel
+from ...core30_context.context import Context
+
+from typing import Dict, Any, Callable, List
+from logging import Logger
 from enum import Enum
 
 
@@ -7,44 +13,60 @@ class UpdateDictConflict(Enum):
     MERGE = 2
     CHOOSE = 3  # this one indicates interaction will be used (more complicated)
 
-@init_policy
-def init(ctxt: Context):
-    return register_policy(ctxt, 'misc.update_dict_conflict', UpdateDictConflict, config=True)
+register_config_default('.misc.update_dict_conflict', UpdateDictConflict, UpdateDictConflict.KEEP)
 
 
-def already_in_dict(ctxt: Context, initial_dict: Dict[Any, Any], dict_to_merge_into: Dict[Any, Any]):
-    common_keys = initial_dict.keys().intersection(dict_to_merge_into.keys())
-    optional_debug_logger = ctxt['policy']['log']['debug_logger']
-    if optional_debug_logger:
+@config_dependencies(('.exception.level', ExceptionLevel))
+@context_dependencies(('.log.debug_logger', Logger | None), ('.log.main_logger', Logger))
+def already_in_dict(ctxt: Context, config: Config,
+                    initial_dict: Dict[Any, Any], dict_to_merge_into: Dict[Any, Any], raise_if_strict: bool = False):
+    common_keys = set(initial_dict.keys()).intersection(set(dict_to_merge_into.keys()))
+    optional_debug_logger = ctxt['log']['debug_logger']
+    if optional_debug_logger and common_keys:
         optional_debug_logger.debug(f"Common keys {common_keys} between the two provided dicts")
     if common_keys:
-        if ctxt['config']['exception']['level'].lower() == ExceptionLevel.LAX.name.lower():
-            if optional_debug_logger:
+        if config['exception']['level'] == ExceptionLevel.LAX or not raise_if_strict:
+            if config['exception']['level'] == ExceptionLevel.LAX and optional_debug_logger:
                 optional_debug_logger.debug('Policy LAX so only warning printed as there are common keys')
-            ctxt['policy']['log']['logger'].warning(f"¨Warning common keys {common_keys} between provided dicts")
-        elif ctxt['config']['exception_level'] == policy.exeception_level.STRICT:
+            ctxt['log']['main_logger'].warning(f"¨Warning common keys {common_keys} between provided dicts")
+        elif config['exception']['level'] == ExceptionLevel.STRICT and raise_if_strict:
             if optional_debug_logger:
                 optional_debug_logger.debug('Policy STRICT so raising exception as there are common keys between'
-                                            ' provided dicts')
-            raise Exception(f"Dict to merge into keys are already in source dict: {common_keys}")
+                                            f" provided dicts (also depending on raise_if_strict={raise_if_strict})")
+            if raise_if_strict:
+                raise Exception(f"Dict to merge into keys are already in source dict: {common_keys}")
+            else:
+                ctxt['log']['main_logger'].error(f"Dict to merge into keys are already in source dict: {common_keys}")
         else:
-            raise Exception(f"config value for exception_level must be either {policy.exeception_level.LAX} or "
-                            f"{policy.exeception_level.STRICT}, not {ctxt['config']['exception_level']}")
+            raise Exception(f"config value for exception_level must be either {ExceptionLevel.LAX} or "
+                            f"{ExceptionLevel.STRICT}, not {config['exception']['level']}")
     return common_keys
 
 
-def update_dict_check_already_there(ctxt: Context, initial_dict: Dict[Any, Any], dict_to_merge_into: Dict[Any, Any]):
-    common_keys = already_in_dict(ctxt, initial_dict, dict_to_merge_into)
+#@register_policy('.misc.update_dict_conflict')
+@config_dependencies(('.misc.update_dict_conflict', UpdateDictConflict))
+@context_dependencies(('.log.debug_logger', Logger | None), ('.log.main_logger', Logger),
+                      ('.interactor.ask', Callable[[...], str]))
+def update_dict_check_already_there(ctxt: Context, config: Config,
+                                    initial_dict: Dict[Any, Any], dict_to_merge_into: Dict[Any, Any],
+                                    raise_if_strict: bool = False):
+    common_keys = already_in_dict(initial_dict, dict_to_merge_into, raise_if_strict)
 
-    if common_keys:  # ctxt['config']['policy.exception'] is lax otherwise the already_in_dict function would fail
-        ctxt['policy']['log']['logger'].warning(f"¨Warning common keys {common_keys}, dict will be modified or"
-                                                f" not according to ctxt['config']['update_dict_conflict']")
-        if ctxt['config'].get('update_dict_conflict', UpdateDictConflict.KEEP.name) == UpdateDictConflict.KEEP.name:
+    if common_keys:
+        ctxt['log']['main_logger'].info(f"¨Warning common keys {common_keys}, dict will be modified or"
+                                        f" not according to config['misc']['update_dict_conflict']")
+        if config['misc']['update_dict_conflict'] == UpdateDictConflict.KEEP:
             initial_dict.update(**{k: v for k, v in dict_to_merge_into if k not in common_keys})
-        elif ctxt['config']['update_dict_conflict'] == UpdateDictConflict.MERGE.name:
+        elif config['misc']['update_dict_conflict'] == UpdateDictConflict.MERGE:
             initial_dict.update(dict_to_merge_into)
-        elif ctxt['config']['update_dict_conflict'] == UpdateDictConflict.CHOOSE.name:
-            initial_dict.update(dict_to_merge_into)
+        elif ctxt['config']['update_dict_conflict'] == UpdateDictConflict.CHOOSE:
+            chosen_items_to_merge = {}
+            for key in common_keys:
+                chosen_items_to_merge[key] = ctxt['interactor']['ask'] \
+                    (f"Choose between {initial_dict[key]} and {dict_to_merge_into[key]}", type(initial_dict[key]),
+                     initial_dict[key], dict_to_merge_into[key])
+            initial_dict.update(**{k: v for k, v in dict_to_merge_into if k not in common_keys})
+            initial_dict.update(chosen_items_to_merge)
         else:
             raise Exception(f"config value for update_dict_conflict must be either {UpdateDictConflict.KEEP}, "
                             f"{UpdateDictConflict.MERGE} or {UpdateDictConflict.CHOOSE}, not "
@@ -53,7 +75,3 @@ def update_dict_check_already_there(ctxt: Context, initial_dict: Dict[Any, Any],
         initial_dict.update(dict_to_merge_into)
 
     return common_keys
-
-
-register_policy('update_dict_check_already_there', [policy.LAX, policy.STRICT])
-register_policy('already_in_dict', [policy.LAX, policy.STRICT])

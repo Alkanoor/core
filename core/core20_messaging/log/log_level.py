@@ -1,3 +1,5 @@
+from ...core11_config.config import register_config_default
+
 import logging
 
 

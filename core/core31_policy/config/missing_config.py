@@ -1,6 +1,6 @@
-from ..exception.strictness import raise_exception
 from ...core11_config.config import Config, register_config_default, config_dependencies
 from ...core30_context.context_dependency_graph import context_dependencies
+from ..exception.strictness import raise_exception
 from ...core30_context.context import Context
 
 from typing import List, Callable
@@ -12,11 +12,12 @@ class MissingConfigPolicy(Enum):
     ASK = 2
     ASK_GROUP = 3
 
-register_config_default('.missing_config', MissingConfigPolicy, MissingConfigPolicy.ASK)
+register_config_default('.config.missing_config', MissingConfigPolicy, MissingConfigPolicy.ASK)
 
 
+#@register_policy('.config.missing_config')
 @config_dependencies(('.config.missing_config', MissingConfigPolicy))
-@context_dependencies(('.interactor.ask', Callable[[str|List[str]], str]))
+@context_dependencies(('.interactor.ask', Callable[[...], str]))
 def missing_config_policy(ctxt: Context, config: Config, missing_configs: List[str], func_name: str):
     if config['missing_config'] == MissingConfigPolicy.RAISE:
         raise Exception(f"Missing configuration for function {func_name}: {', '.join(missing_configs)}")
