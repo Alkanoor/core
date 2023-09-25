@@ -17,5 +17,7 @@ def debug_logger(config: Config, ctxt: Context):
 
 
 @context_producer(('.log.main_logger', Logger))
-def main_logger(ctxt: Context):
+@config_dependencies(('.log.log_level', int))
+def main_logger(config: Config, ctxt: Context):
     ctxt.setdefault('log', {})['main_logger'] = get_logger('context.log.main_logger')
+    ctxt['log']['main_logger'].setLevel(config['log']['log_level'])

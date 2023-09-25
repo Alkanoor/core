@@ -1,6 +1,6 @@
-from .context_dependency_graph import context_producer
+from core.core30_context.context_dependency_graph import context_producer
 from core.core20_messaging.log.logger import get_logger
-from .context import Context
+from core.core30_context.context import Context
 
 from logging import Logger
 import platform
@@ -13,15 +13,9 @@ def init_executor_context(ctxt: Context):
     if 'win' not in platform.system().lower():
         uid, gid = os.getuid(), os.getgid()
     ctxt.setdefault('executor', {}) \
-         .update({'os': platform.system(),
-                  'arch': platform.machine(),
-                  'platform': platform.platform(),
+         .update({'os': platform.system().lower(),
+                  'arch': platform.machine().lower(),
+                  'platform': platform.platform().lower(),
                   'uid': uid,
                   'gid': gid
             })
-
-
-@context_producer(('.log.initial_logger', Logger))  # default log context when no config has yet be parsed
-def init_log_context(ctxt: Context):
-    default_logger = get_logger('context.log.initial_logger')
-    ctxt.setdefault('log', {}).update({'initial_logger': default_logger})

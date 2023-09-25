@@ -1,5 +1,4 @@
 from ..cli.registry import register_simple_parsing
-from ...core11_config.config import enrich_config
 
 from argparse import Namespace
 
@@ -30,16 +29,11 @@ different_matching = {
     'set': 'additional_options'
 }
 
-# @config_producer('.config_file',
-#                  '.sub_config',
-#                  '.log_level',
-#                  '.database',
-#                  '.env_regex',
-#                  '.additional_options')
+
 def deal_with_parsed_data(parsed_data: Namespace):
-    enrich_config({
-        f".{k}": different_matching.get(k, v) for k, v in parsed_data.__dict__.items()
-    })
+    return {
+        f".{different_matching.get(k, k)}": v for k, v in parsed_data.__dict__.items() if v
+    }
 
 # initial CLI entrypoint allowing to switch config
 # (initial because if not starting with mgr, the default config is used)

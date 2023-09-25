@@ -8,7 +8,6 @@ import copy
 
 
 class ThreadSafeDependencyManager:
-
     _global_context_dependencies_graph = nx.Graph()
     _global_context_nodes = {}
     _global_context_producers = {}
@@ -25,7 +24,6 @@ class ThreadSafeDependencyManager:
 
     # _thread_local = threading.local()  # legacy with thread_local
 
-
     @classmethod
     def copy_dependencies_context(cls, ctxt: Context | None = None):
         dependencies_graph = cls._incontext_dependencies_graph.get()
@@ -33,11 +31,13 @@ class ThreadSafeDependencyManager:
         producers = cls._incontext_producers.get()
         consumers = cls._incontext_consumers.get()
         ctxt = Context() if not ctxt else ctxt
+
         def _copy_context():
             cls._incontext_dependencies_graph.set(dependencies_graph.copy())
             cls._incontext_nodes.set(copy.deepcopy(nodes))
             cls._incontext_producers.set(copy.deepcopy(producers))
             cls._incontext_consumers.set(copy.deepcopy(consumers))
+
         ctxt.run(_copy_context)
         return ctxt
 
@@ -64,11 +64,11 @@ class ThreadSafeDependencyManager:
         #     return getattr(cls._thread_local, attr_name)
 
     def __init__(self):
-        self.context_dependencies_graph = ThreadSafeDependencyManager.get_attr_or_copy_from_global('context_dependencies_graph')
+        self.context_dependencies_graph = ThreadSafeDependencyManager.get_attr_or_copy_from_global(
+            'context_dependencies_graph')
         self.context_nodes = ThreadSafeDependencyManager.get_attr_or_copy_from_global('context_nodes')
         self.context_producers = ThreadSafeDependencyManager.get_attr_or_copy_from_global('context_producers')
         self.context_consumers = ThreadSafeDependencyManager.get_attr_or_copy_from_global('context_consumers')
-
 
     def add_node_if_not_existing(self, f: Callable[[...], Any]):
         key = f"{f.__module__}.{f.__name__}"
@@ -79,7 +79,7 @@ class ThreadSafeDependencyManager:
         return key, self.context_nodes[key]['index']
 
     # the function below aims at handling the dependencies graph (resolving when needed)
-    def context_dependencies(self, *deps: List[Union[Tuple[str, Type], Tuple[str, Type, bool]]]):
+    def context_dependencies(self, *deps: Union[Tuple[str, Type], Tuple[str, Type, bool]]):
         def sub(f: Callable[[...], Any]):
             key, node_target_index = self.add_node_if_not_existing(f)
 
@@ -111,7 +111,7 @@ class ThreadSafeDependencyManager:
                         else:
                             attributes_string, expected_type, needing_a_fixed_producer = dep
                         if needing_a_fixed_producer:
-                            assert attributes_string in self.context_producers,\
+                            assert attributes_string in self.context_producers, \
                                 f"No context producer registered to craft {attributes_string}, please register one"
 
                         if needing_a_fixed_producer or attributes_string in self.context_producers:
@@ -138,7 +138,6 @@ class ThreadSafeDependencyManager:
 
         return sub
 
-
     def _assert_production(self, key, products, context, assert_done, assert_types):
         if not self.context_nodes[key]['production_ok']:
             if assert_done or assert_types:
@@ -151,7 +150,7 @@ class ThreadSafeDependencyManager:
                                                                  f"{expected_type}"
             self.context_nodes[key]['production_ok'] = True
 
-    def context_producer(self, *products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
+    def context_producer(self, *products: Tuple[str, Type], assert_done=True, assert_types=False):
         def sub(f: Callable[[...], Any]):
             key, node_source_index = self.add_node_if_not_existing(f)
 
@@ -185,8 +184,7 @@ class ThreadSafeDependencyManager:
 
         return sub
 
-
-    def context_dynamic_producer(self, *products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
+    def context_dynamic_producer(self, *products: Tuple[str, Type], assert_done=True, assert_types=False):
         def sub(f: Callable[[...], Any]):
             key, node_source_index = self.add_node_if_not_existing(f)
 
@@ -211,33 +209,36 @@ class ThreadSafeDependencyManager:
 
         return sub
 
-
-    def try_resolve(self, *dep_names: List[str]):
+    def try_resolve(self, *dep_names: str):
         producers = {dep_name: self.context_nodes[self.context_dependencies_graph.nodes[
-                            self.context_producers[dep_name]
-                        ]['name']] for dep_name in dep_names}
+            self.context_producers[dep_name]
+        ]['name']] for dep_name in dep_names}
         return {dep_name: producers[dep_name]['produce_function'] for dep_name in dep_names}
-
 
     def is_producer(self, function_key: str):
         return self.context_nodes.get(function_key, {}).get('produce_function', None)
 
 
-def context_dependencies(*deps: List[Union[Tuple[str, Type], Tuple[str, Type, bool]]]):
+def context_dependencies(*deps: Union[Tuple[str, Type], Tuple[str, Type, bool]]):
     return ThreadSafeDependencyManager().context_dependencies(*deps)
 
-def context_producer(*products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
+
+def context_producer(*products: Tuple[str, Type], assert_done=True, assert_types=False):
     return ThreadSafeDependencyManager().context_producer(*products, assert_done=assert_done, assert_types=assert_types)
 
-def context_dynamic_producer(*products: List[Tuple[str, Type]], assert_done=True, assert_types=False):
+
+def context_dynamic_producer(*products: Tuple[str, Type], assert_done=True, assert_types=False):
     return ThreadSafeDependencyManager().context_dynamic_producer(*products,
                                                                   assert_done=assert_done, assert_types=assert_types)
 
-def try_resolve(*dep_names: List[str]):
+
+def try_resolve(*dep_names: str):
     return ThreadSafeDependencyManager().try_resolve(*dep_names)
+
 
 def is_context_producer(function_key: str):  # function_key is f.__module__ + . + f.__name__
     return ThreadSafeDependencyManager().is_producer(function_key)
+
 
 def copy_dependencies_context(ctxt: Context | None = None):  # warning: this Context is from contextvars
     return ThreadSafeDependencyManager.copy_dependencies_context(ctxt)

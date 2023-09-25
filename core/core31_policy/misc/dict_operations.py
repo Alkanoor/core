@@ -28,7 +28,7 @@ def already_in_dict(ctxt: Context, config: Config,
         if config['exception']['level'] == ExceptionLevel.LAX or not raise_if_strict:
             if config['exception']['level'] == ExceptionLevel.LAX and optional_debug_logger:
                 optional_debug_logger.debug('Policy LAX so only warning printed as there are common keys')
-            ctxt['log']['main_logger'].warning(f"¨Warning common keys {common_keys} between provided dicts")
+            ctxt['log']['main_logger'].warning(f"Common keys {common_keys} between provided dicts")
         elif config['exception']['level'] == ExceptionLevel.STRICT and raise_if_strict:
             if optional_debug_logger:
                 optional_debug_logger.debug('Policy STRICT so raising exception as there are common keys between'
@@ -53,10 +53,11 @@ def update_dict_check_already_there(ctxt: Context, config: Config,
     common_keys = already_in_dict(initial_dict, dict_to_merge_into, raise_if_strict)
 
     if common_keys:
-        ctxt['log']['main_logger'].info(f"¨Warning common keys {common_keys}, dict will be modified or"
-                                        f" not according to config['misc']['update_dict_conflict']")
+        ctxt['log']['main_logger'].info(f"Common keys {common_keys}, dict will be modified or"
+                                        f" not according to config['misc']['update_dict_conflict'] = "
+                                        f"{config['misc']['update_dict_conflict']}")
         if config['misc']['update_dict_conflict'] == UpdateDictConflict.KEEP:
-            initial_dict.update(**{k: v for k, v in dict_to_merge_into if k not in common_keys})
+            initial_dict.update(**{k: v for k, v in dict_to_merge_into.items() if k not in common_keys})
         elif config['misc']['update_dict_conflict'] == UpdateDictConflict.MERGE:
             initial_dict.update(dict_to_merge_into)
         elif ctxt['config']['update_dict_conflict'] == UpdateDictConflict.CHOOSE:
@@ -65,7 +66,7 @@ def update_dict_check_already_there(ctxt: Context, config: Config,
                 chosen_items_to_merge[key] = ctxt['interactor']['ask'] \
                     (f"Choose between {initial_dict[key]} and {dict_to_merge_into[key]}", type(initial_dict[key]),
                      initial_dict[key], dict_to_merge_into[key])
-            initial_dict.update(**{k: v for k, v in dict_to_merge_into if k not in common_keys})
+            initial_dict.update(**{k: v for k, v in dict_to_merge_into.items() if k not in common_keys})
             initial_dict.update(chosen_items_to_merge)
         else:
             raise Exception(f"config value for update_dict_conflict must be either {UpdateDictConflict.KEEP}, "

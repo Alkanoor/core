@@ -1,5 +1,5 @@
-from core.core31_policy.entrypoint.entrypoint import entrypoint
+from core.core31_policy.entrypoint.entrypoint import cli_entrypoint
 
 
 if __name__ == '__main__':
-    entrypoint()
+    cli_entrypoint()
