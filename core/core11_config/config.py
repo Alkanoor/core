@@ -22,7 +22,7 @@ def config_dependencies(*deps: List[Tuple[str, Type]]):
         @wraps(f)
         def f_with_deps_resolved(*args, **argv):
             context = current_ctxt()
-            config = context['config']
+            config = context.setdefault('config', {})
             unknown_configs = []
             default_to_fixed = []
             has_been_deep_copied = False
@@ -37,8 +37,7 @@ def config_dependencies(*deps: List[Tuple[str, Type]]):
                         # check if the config contains the desired value, in this case not a default value anymore
                         success, value_from_context = check_dict_against_attributes_string(config, attributes_string)
                         if success:
-                            set_dict_against_attributes_string(_config_value_or_default, attributes_string,
-                                                               (False, value_from_context))
+                            _config_value_or_default[attributes_string] = (False, expected_type, value_from_context)
                             default_to_fixed.append(attributes_string)
                         else:
                             if not has_been_deep_copied:
@@ -53,16 +52,16 @@ def config_dependencies(*deps: List[Tuple[str, Type]]):
                 filled_values = missing_config_policy(unknown_configs, key)
 
                 for attributes_string, value in filled_values.items():
-                    set_dict_against_attributes_string(_config_value_or_default, attributes_string, (False, value))
+                    _config_value_or_default[attributes_string] =\
+                        (False, _config_value_or_default[attributes_string][1], value)
                     set_dict_against_attributes_string(config, attributes_string, value)
                     if has_been_deep_copied:  # in this case the changes should be reported within the context
                         set_dict_against_attributes_string(context['config'], attributes_string, value)
                     default_to_fixed.append(attributes_string)
 
             if default_to_fixed:
-                update_fixed(default_to_fixed)
+                update_fixed(*default_to_fixed)
 
-            print(f, config, args)
             return f(config, *args, **argv)
 
         return f_with_deps_resolved
@@ -90,7 +89,7 @@ def enrich_config(config_to_merge: Dict[str, Any]):
     update_dict_check_already_there(context['config'], rightly_typed)
 
 
-def update_fixed(attributes_strings):
+def update_fixed(*attributes_strings: List[str]):
     functions_to_update = set()
     for attributes_string in attributes_strings:
         functions_to_update = functions_to_update.union(
@@ -99,9 +98,8 @@ def update_fixed(attributes_strings):
     for function in functions_to_update:
         # in this case it is known that the function as no argument in order to be called during dependency resolve
         func = is_context_producer(function)
-        print("DOING UPDATE FIXED")
-        print(func)
-        func()
+        if func:
+            func()
 
 
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string, set_dict_against_attributes_string

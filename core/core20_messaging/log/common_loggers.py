@@ -11,6 +11,7 @@ from logging import Logger, DEBUG
 def debug_logger(config: Config, ctxt: Context):
     if config['log']['log_level'] == DEBUG:
         ctxt.setdefault('log', {})['debug_logger'] = get_logger('context.log.debug_logger')
+        ctxt['log']['debug_logger'].setLevel(DEBUG)
     else:
         ctxt.setdefault('log', {})['debug_logger'] = None
 

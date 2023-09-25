@@ -6,8 +6,9 @@
 # * type incompatibility between producer and consumer
 # * dynamic lack of produced attribute after production
 # * redeclaration of a producer or a consumer for a function with the same name + module
-
-from core.core30_context.context_dependency_graph import context_producer, context_dependencies
+from core.core30_context.context_dependency_graph import context_producer, context_dependencies, \
+    ThreadSafeDependencyManager
+from core.core30_context.context import copy_context
 
 
 # minimal test ok
@@ -167,6 +168,72 @@ def todo_in_main_thread():
     print(current_ctxt())
 
 
+def test7():
+    from core.core30_context.context import current_ctxt, copy_context
+
+    def modify_something_in_context():
+        ctxt = current_ctxt()  # important: do not forget it unless you want a global failure
+        print("Before modifying in context")
+        print(ctxt)
+        ctxt['bougie'] = 'baboin'
+        print("After modifying in context")
+        print(ctxt)
+
+    c = copy_context()
+    c.run(modify_something_in_context)
+
+    print("After in main context, does it has bougie? Should not")
+    ctxt = current_ctxt()
+    print(ctxt)
+
+
+def test8():
+    print("AT BEGIN IN MAIN")
+    print(ThreadSafeDependencyManager._global_context_dependencies_graph)
+    print(ThreadSafeDependencyManager._global_context_nodes.keys())
+    print(ThreadSafeDependencyManager._incontext_dependencies_graph.get())
+    print(ThreadSafeDependencyManager._incontext_nodes.get().keys())
+
+    ctxt_cpy = copy_context()
+
+    def add_new_producers_consumers():
+        print("AT BEGIN IN OTHER CONTEXT (should equal main)")
+        print(ThreadSafeDependencyManager._global_context_dependencies_graph)
+        print(ThreadSafeDependencyManager._global_context_nodes.keys())
+        print(ThreadSafeDependencyManager._incontext_dependencies_graph.get())
+        print(ThreadSafeDependencyManager._incontext_nodes.get().keys())
+
+        @context_producer(('.test.incontext', str))
+        @context_dependencies(('.a.a', str))
+        def useless_in_context(ctxt):
+            print(f"Useless there: {ctxt}")
+
+    def end_the_print():
+        print("AT END IN OTHER CONTEXT")
+        print(ThreadSafeDependencyManager._global_context_dependencies_graph)
+        print(ThreadSafeDependencyManager._global_context_nodes.keys())
+        print(ThreadSafeDependencyManager._incontext_dependencies_graph.get())
+        print(ThreadSafeDependencyManager._incontext_nodes.get().keys())
+
+    ctxt_cpy.run(add_new_producers_consumers)
+
+    @context_producer(('.test.inmaincontext', str))
+    def useless_in_main(ctxt):
+        print(f"Useless there in main: {ctxt}")
+
+    @context_dependencies(('.a.a', str))
+    def useless_in_main2(ctxt):
+        print(f"Useless there in main: {ctxt}")
+
+    ctxt_cpy.run(end_the_print)
+
+    print("AT END IN MAIN (should equal main)")
+    print(ThreadSafeDependencyManager._global_context_dependencies_graph)
+    print(ThreadSafeDependencyManager._global_context_nodes.keys())
+    print(ThreadSafeDependencyManager._incontext_dependencies_graph.get())
+    print(ThreadSafeDependencyManager._incontext_nodes.get().keys())
+
+
 if __name__ == '__main__':
     test1()
     try:
@@ -189,6 +256,9 @@ if __name__ == '__main__':
     t.start()
 
     import time
-    time.sleep(2)
+    time.sleep(0.5)
     todo_in_main_thread()
     t.join()
+
+    test7()
+    test8()

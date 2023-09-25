@@ -1,33 +1,67 @@
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string
 
 from typing import List, Callable, Any, Tuple, Type, Union
+from contextvars import ContextVar, Context
 from functools import wraps
 import networkx as nx
-import threading
 import copy
 
 
 class ThreadSafeDependencyManager:
 
-    _context_dependencies_graph = nx.Graph()
-    _context_nodes = {}
-    _context_producers = {}
-    _context_consumers = {}
+    _global_context_dependencies_graph = nx.Graph()
+    _global_context_nodes = {}
+    _global_context_producers = {}
+    _global_context_consumers = {}
 
-    _thread_local = threading.local()
+    _incontext_dependencies_graph = ContextVar('dependencies_graph')
+    _incontext_dependencies_graph.set(_global_context_dependencies_graph)
+    _incontext_nodes = ContextVar('context_nodes')
+    _incontext_nodes.set(_global_context_nodes)
+    _incontext_producers = ContextVar('context_producers')
+    _incontext_producers.set(_global_context_producers)
+    _incontext_consumers = ContextVar('context_consumers')
+    _incontext_consumers.set(_global_context_consumers)
+
+    # _thread_local = threading.local()  # legacy with thread_local
 
 
     @classmethod
+    def copy_dependencies_context(cls, ctxt: Context | None = None):
+        dependencies_graph = cls._incontext_dependencies_graph.get()
+        nodes = cls._incontext_nodes.get()
+        producers = cls._incontext_producers.get()
+        consumers = cls._incontext_consumers.get()
+        ctxt = Context() if not ctxt else ctxt
+        def _copy_context():
+            cls._incontext_dependencies_graph.set(dependencies_graph.copy())
+            cls._incontext_nodes.set(copy.deepcopy(nodes))
+            cls._incontext_producers.set(copy.deepcopy(producers))
+            cls._incontext_consumers.set(copy.deepcopy(consumers))
+        ctxt.run(_copy_context)
+        return ctxt
+
+    @classmethod
     def get_attr_or_copy_from_global(cls, attr_name):
-        if threading.current_thread() is threading.main_thread():
-            return getattr(cls, '_' + attr_name)
-        else:
-            if not hasattr(cls._thread_local, attr_name):
-                # the first time in a thread the variable is asked, copy it from its global state
-                setattr(cls._thread_local, attr_name,
-                        getattr(cls, '_' + attr_name).copy() if attr_name == '_context_dependencies_graph' else
-                        copy.deepcopy(getattr(cls, '_' + attr_name)))
-            return getattr(cls._thread_local, attr_name)
+        attribute = getattr(cls, '_in' + attr_name)
+        try:
+            return attribute.get()
+        except:  # this will happen in new threads
+            attribute.set(
+                getattr(cls, '_global_' + attr_name).copy() if attr_name == '_incontext_dependencies_graph' else
+                copy.deepcopy(getattr(cls, '_global_' + attr_name))
+            )
+        return getattr(cls, '_in' + attr_name).get()
+        # legacy with thread_local
+        # if threading.current_thread() is threading.main_thread():
+        #     return getattr(cls, '_' + attr_name).set()
+        # else:
+        #     if not hasattr(cls._thread_local, attr_name):
+        #         # the first time in a thread the variable is asked, copy it from its global state
+        #         setattr(cls._thread_local, attr_name,
+        #                 getattr(cls, '_' + attr_name).copy() if attr_name == '_context_dependencies_graph' else
+        #                 copy.deepcopy(getattr(cls, '_' + attr_name)))
+        #     return getattr(cls._thread_local, attr_name)
 
     def __init__(self):
         self.context_dependencies_graph = ThreadSafeDependencyManager.get_attr_or_copy_from_global('context_dependencies_graph')
@@ -186,7 +220,7 @@ class ThreadSafeDependencyManager:
 
 
     def is_producer(self, function_key: str):
-        return self.context_nodes[function_key].get('produce_function', None)
+        return self.context_nodes.get(function_key, {}).get('produce_function', None)
 
 
 def context_dependencies(*deps: List[Union[Tuple[str, Type], Tuple[str, Type, bool]]]):
@@ -204,6 +238,9 @@ def try_resolve(*dep_names: List[str]):
 
 def is_context_producer(function_key: str):  # function_key is f.__module__ + . + f.__name__
     return ThreadSafeDependencyManager().is_producer(function_key)
+
+def copy_dependencies_context(ctxt: Context | None = None):  # warning: this Context is from contextvars
+    return ThreadSafeDependencyManager.copy_dependencies_context(ctxt)
 
 
 from .context import current_ctxt

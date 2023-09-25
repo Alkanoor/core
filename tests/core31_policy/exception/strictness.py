@@ -1,27 +1,30 @@
-from core.core31_policy.exception.format import format_exception
-from core.core31_policy.exception.strictness import raise_exception
+from core.core11_config.config import update_fixed
+from core.core31_policy.exception.strictness import raise_exception, ExceptionLevel
+from core.core31_policy.exception.format import ExceptionFormat
 
 
 if __name__ == '__main__':
-    from core.core20_messaging.log.logger import get_logger
     import logging
 
-    logger = get_logger('main')
-    logger.setLevel(logging.DEBUG)
     ctxt = {
-        'config': {'exception': {'level': 'lax', 'format': 'default'}},
-        'policy': {
-            'log': {
-                'logger': get_logger('main'),
-                'debug_logger': get_logger('main')
-            },
+        'config': {
             'exception': {
-               'format': 1
+                'level': ExceptionLevel.LAX,
+                'format': ExceptionFormat.DEFAULT
+            },
+            'log': {
+                'log_level': logging.DEBUG
             }
         },
     }
-    ctxt['policy']['exception']['format'] = lambda x, y: format_exception(ctxt, x, y)
-    raise_exception(ctxt, 'test')
 
-    ctxt['config']['exception']['level'] = 'strict'
-    raise_exception(ctxt, 'test')
+    from core.core30_context.context import current_ctxt
+    current_ctxt().update(ctxt)
+    raise_exception('test')
+
+    current_ctxt()['config'].update({'log': {'log_level': logging.INFO}})
+    update_fixed('.log.log_level')
+    raise_exception('test2')
+
+    ctxt['config']['exception']['level'] = ExceptionLevel.STRICT
+    raise_exception('test3')
