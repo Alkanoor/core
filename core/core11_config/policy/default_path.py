@@ -8,12 +8,14 @@ from os import path
 @context_dependencies(('.executor.os', str), ('.executor.uid', int), ('.executor.gid', int))
 def default_config_paths(ctxt: Context):
     if 'win' in ctxt['executor']['os']:
-        return [path.expandvars('%APPDATA%\\mgr\\config.yml')]
+        return [path.expandvars('%APPDATA%\\mgr\\config.yml'), path.expandvars('%APPDATA%\\mgr\\config.ini')]
     else:
         if ctxt['executor']['uid'] == 0 or ctxt['executor']['gid'] == 0:  # quick & dirty way to know we are root
-            return ['/etc/mgr/config.yml', path.expanduser('~/.mgr/config.yml')]
+            return ['/etc/mgr/config.yml', '/etc/mgr/config.ini',
+                    path.expanduser('~/.mgr/config.yml'), path.expanduser('~/.mgr/config.ini')]
         else:  # if not root check if a config is available in current user home
-            return [path.expanduser('~/.mgr/config.yml'), '/etc/mgr/config.yml']
+            return [path.expanduser('~/.mgr/config.yml'), path.expanduser('~/.mgr/config.ini'),
+                    '/etc/mgr/config.yml', '/etc/mgr/config.ini']
 
 
 # @register_policy('.config.default_database_paths')

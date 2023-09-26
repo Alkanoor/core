@@ -15,6 +15,9 @@ arguments_set = [
     (['--database', '-d'], {'help': 'Global database holding all the application state (including further contexts)'}),
     (['--set'], {'help': 'Additional configuration options',
                  'action': 'append'}),
+    (['--out', '-o'], {'help': 'Output the configuration options within the given file (instead of current one)'}),
+    (['--outformat', '-of'], {'help': 'Set the (optional) output format in case an output file is given',
+                              'choices': ['yaml', 'ini']}),
 ]
 
 # this one holds some mutually exclusive argument groups but this is not handled yet
@@ -25,7 +28,7 @@ arguments_help = [
     (['--subtree', '-s'], {'help': 'Set the subtree to perform list operations on (this requires a module provided)'}),
     (['--out', '-o'], {'help': 'Output the configuration options within the given file'}),
     (['--outformat', '-of'], {'help': 'Set the (optional) output format in case an output file is given',
-                              'choices': ['text', 'json', 'yaml', 'html']}),
+                              'choices': ['text', 'json', 'yaml', 'ini', 'html']}),
 ]
 
 arguments_use = [

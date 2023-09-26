@@ -12,7 +12,14 @@ def default_config_env():
         'mgr_database',
         'mgr.config.database',
         'config.database',
-        '.config.database'
+        '.config.database',
+        'mgr.loglevel',
+        'mgr.log_level',
+        'mgr_loglevel',
+        '.loglevel',
+        '.log_level',
+        '.mgr.loglevel',
+        '.mgr.log_level',
     }, {
         'mgr.config': '.config',
         'mgr_config': '.config',
@@ -24,4 +31,11 @@ def default_config_env():
         'mgr.config.database': '.database',
         'config.database': '.database',
         '.config.database': '.database',
+        'mgr.loglevel': '.log_level',
+        'mgr.log_level': '.log_level',
+        'mgr_loglevel': '.log_level',
+        '.loglevel': '.log_level',
+        '.log_level': '.log_level',
+        '.mgr.loglevel': '.log_level',
+        '.mgr.log_level': '.log_level',
     }

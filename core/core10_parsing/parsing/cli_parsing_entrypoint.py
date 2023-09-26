@@ -1,3 +1,4 @@
+from .string_transform import cli_string_transforms
 from ..cli.registry import register_simple_parsing
 
 from argparse import Namespace
@@ -6,9 +7,9 @@ from argparse import Namespace
 arguments = [
     (['--config', '-c'],
      # the following statement must be backed by the right policy in case no config option is provided
-            {'help': 'Yaml configuration file for global options, default to one of ~/.mgr/config.yml, '
-             '/etc/mgr/config.yml, or %%APPDATA%%/mgr/config.yml (depending on OS and privileges)'}),
-     # 'default': default_config_path(ctxt)}),
+     {'help': 'Yaml configuration file for global options, default to one of ~/.mgr/config.yml, '
+              '/etc/mgr/config.yml, or %%APPDATA%%/mgr/config.yml (depending on OS and privileges)'}),
+    # 'default': default_config_path(ctxt)}),
     (['--subconfig', '-sc'], {'help': 'Sub-configuration block to use from config file (default to default)',
                               'default': 'default'}),
     (['--loglevel', '-l'], {'help': 'Global logger value (default to info)',
@@ -23,17 +24,19 @@ arguments = [
 ]
 
 different_matching = {
-    'subconfig': 'sub_config',
-    'loglevel': 'log_level',
-    'envregex': 'env_regex',
-    'set': 'additional_options'
+    'subconfig': '.sub_config',
+    'loglevel': '.log_level',
+    'envregex': '.env_regex',
+    'set': '.additional_options'
 }
 
 
 def deal_with_parsed_data(parsed_data: Namespace):
     return {
-        f".{different_matching.get(k, k)}": v for k, v in parsed_data.__dict__.items() if v
+        f"{different_matching.get(k, '.'+k)}": cli_string_transforms.get(different_matching.get(k, k), lambda x: x)(v)
+        for k, v in parsed_data.__dict__.items() if v
     }
+
 
 # initial CLI entrypoint allowing to switch config
 # (initial because if not starting with mgr, the default config is used)

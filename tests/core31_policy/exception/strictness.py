@@ -1,6 +1,6 @@
-from core.core11_config.config import update_fixed
 from core.core31_policy.exception.strictness import raise_exception, ExceptionLevel
 from core.core31_policy.exception.format import ExceptionFormat
+from core.core11_config.config import update_fixed
 
 
 if __name__ == '__main__':

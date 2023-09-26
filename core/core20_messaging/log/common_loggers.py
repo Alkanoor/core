@@ -3,7 +3,7 @@ from core.core11_config.config import config_dependencies, Config
 from core.core20_messaging.log.logger import get_logger
 from core.core30_context.context import Context
 
-from logging import Logger, DEBUG
+from logging import Logger, DEBUG, INFO
 
 
 @context_producer(('.log.debug_logger', Logger | None))
@@ -21,3 +21,9 @@ def debug_logger(config: Config, ctxt: Context):
 def main_logger(config: Config, ctxt: Context):
     ctxt.setdefault('log', {})['main_logger'] = get_logger('context.log.main_logger')
     ctxt['log']['main_logger'].setLevel(config['log']['log_level'])
+
+
+@context_producer(('.log.cli_interactor_logger', Logger))
+def cli_interactor_logger(ctxt: Context):
+    ctxt.setdefault('log', {})['cli_interactor_logger'] = get_logger('context.log.cli_interactor_logger')
+    ctxt['log']['cli_interactor_logger'].setLevel(INFO)

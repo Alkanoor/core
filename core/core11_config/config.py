@@ -2,15 +2,14 @@ from typing import Dict, List, Callable, Any, Tuple, Type
 from functools import wraps
 import copy
 
-
 Config = Dict[str, Any]
-
 
 _dependencies_per_function = {}
 _functions_dependant_of = {}
 _config_value_or_default: Dict[str, Tuple[bool, Type, Any]] = {}
 
-def config_dependencies(*deps: List[Tuple[str, Type]]):
+
+def config_dependencies(*deps: Tuple[str, Type]):
     def sub(f: Callable[[...], Any]):
         key = f"{f.__module__}.{f.__name__}"
         assert key not in _dependencies_per_function, f"Config dependencies for {key} already registered"
@@ -42,7 +41,7 @@ def config_dependencies(*deps: List[Tuple[str, Type]]):
                         else:
                             if not has_been_deep_copied:
                                 config = copy.deepcopy(config)  # this is in order not to pollute the context
-                                                                # with a default value
+                                # with a default value
                             set_dict_against_attributes_string(config, attributes_string, value)
                 else:
                     unknown_configs.append(attributes_string)
@@ -52,7 +51,7 @@ def config_dependencies(*deps: List[Tuple[str, Type]]):
                 filled_values = missing_config_policy(unknown_configs, key)
 
                 for attributes_string, value in filled_values.items():
-                    _config_value_or_default[attributes_string] =\
+                    _config_value_or_default[attributes_string] = \
                         (False, _config_value_or_default[attributes_string][1], value)
                     set_dict_against_attributes_string(config, attributes_string, value)
                     if has_been_deep_copied:  # in this case the changes should be reported within the context
@@ -71,7 +70,7 @@ def config_dependencies(*deps: List[Tuple[str, Type]]):
 
 def register_config_default(attribute_string, default_value_type, default_value):
     if attribute_string in _config_value_or_default:  # should not happen, but tolerate the case where not a default val
-        assert _config_value_or_default[attribute_string][0] == False, \
+        assert _config_value_or_default[attribute_string][0] is False, \
             f"Not allowing to register twice for the same default value location {attribute_string}"
     _config_value_or_default[attribute_string] = (True, default_value_type, default_value)
 
@@ -79,6 +78,7 @@ def register_config_default(attribute_string, default_value_type, default_value)
 # some tweaks there to convert from string to any correct type
 def right_type_for(value, str_or_default_type):
     return str_or_default_type(value)
+
 
 def enrich_config(config_to_merge: Dict[str, Any]):
     context = current_ctxt()
@@ -89,7 +89,7 @@ def enrich_config(config_to_merge: Dict[str, Any]):
     update_dict_check_already_there(context['config'], rightly_typed)
 
 
-def update_fixed(*attributes_strings: List[str]):
+def update_fixed(*attributes_strings: str):
     functions_to_update = set()
     for attributes_string in attributes_strings:
         functions_to_update = functions_to_update.union(
