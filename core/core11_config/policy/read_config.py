@@ -11,7 +11,7 @@ def parse_yaml(location):
     if 'subconfig' in config:
         subconfig = config['subconfig']
         if not subconfig in config:
-            raise Exception(f"Expecting provided subconfig {config['subconfig']} for be provided")
+            raise Exception(f"Expecting provided subconfig {config['subconfig']} to be provided as dict")
     else:
         subconfig = 'default'
         if not config.get(subconfig):
@@ -24,19 +24,48 @@ def parse_yaml(location):
     return config[config['subconfig']]
 
 
+def parse_section_recursive(config, subconfig, default_keys):
+    result = {}
+    for k, v in config[subconfig].items():
+        if k not in default_keys:
+            print(k, v)
+            if '|' in k:
+                name, t = k.split('|')
+                if t == 'list':
+                    result[name] = v.split(',')
+                elif t == 'dict':
+                    result[name] = parse_section_recursive(config, v, default_keys)
+                elif t == 'list-dict':
+                    result[name] = list(map(lambda s: parse_section_recursive(config, s, default_keys), v.split(',')))
+                else:
+                    raise Exception(f"Unexpected type {t}, expecting list, dict or list-dict")
+            else:
+                result[k] = v
+    return result
+
+
 def parse_ini(location):
     with open(location, 'r') as f:  # raise exception is not existing, otherwise configparser does not
         pass
 
     config = configparser.ConfigParser()
     config.read(location)
-    print(config.sections())
-    print(config['DEFAULT'], config['default'])
-    config['default']['a'] = 'xx'
-    config['DEFAULT']['subconfig'] = 'default'
-    with open(location, 'w') as configfile:
-        config.write(configfile)
-    return config
+
+    if not 'subconfig' in config['DEFAULT']:
+        subconfig = 'default'
+    else:
+        subconfig = config['DEFAULT']['subconfig']
+
+    if subconfig not in config:
+        raise Exception(f"Expecting provided subconfig {subconfig} to be provided as section")
+
+    result_config = parse_section_recursive(config, subconfig, config['DEFAULT'].keys())
+    result_config.update({'subconfig': subconfig})
+
+    #config['DEFAULT']['subconfig'] = 'default'
+    # with open(location, 'w') as configfile:
+    #     config.write(configfile)
+    return result_config
 
 
 def parse_config(location):
