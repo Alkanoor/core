@@ -1,5 +1,7 @@
-from typing import Dict, List, Callable, Any, Tuple, Type
+from typing import Dict, Callable, Any, Tuple, Type
 from functools import wraps
+from enum import Enum
+import json
 import copy
 
 Config = Dict[str, Any]
@@ -77,16 +79,49 @@ def register_config_default(attribute_string, default_value_type, default_value)
 
 # some tweaks there to convert from string to any correct type
 def right_type_for(value, str_or_default_type):
+    if str_or_default_type == bool:
+        return False if isinstance(value, str) and (value.lower() == 'false' or value == '0')\
+                        or isinstance(value, int) and value == 0 else True
+    if str_or_default_type == list or str_or_default_type == dict:
+        return json.loads(value)
     return str_or_default_type(value)
 
 
+def inverse_type_to_string(value):
+    match value:
+        case bool():
+            return
+        case int():
+            return str(value)
+        case str():
+            return value
+        case Enum():
+            return value.name
+        case dict() | list() | set():
+            return json.dumps(value)
+        case _:
+            raise NotImplementedError
+
+
 def enrich_config(config_to_merge: Dict[str, Any]):
-    context = current_ctxt()
-    context.setdefault('config', {})
     rightly_typed = {
         k: right_type_for(v, _config_value_or_default.get(k, (str, str))[1]) for k, v in config_to_merge.items()
     }
-    update_dict_check_already_there(context['config'], rightly_typed)
+    context = current_ctxt()
+    context.setdefault('config', {})
+    for key in rightly_typed:
+        set_dict_against_attributes_string(context['config'], key, rightly_typed[key])
+
+
+def config_to_string(with_default: bool = False):
+    output = {}
+    for key in _config_value_or_default:
+        # only writing it if a specific value has been set or if explicitly asked to dump default
+        if with_default or not _config_value_or_default[key][0]:
+            set_dict_against_attributes_string(output, key,
+                                               inverse_type_to_string(_config_value_or_default[key][2],
+                                                                      _config_value_or_default[key][1]))
+    return output
 
 
 def update_fixed(*attributes_strings: str):

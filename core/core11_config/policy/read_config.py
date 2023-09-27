@@ -8,8 +8,9 @@ import yaml
 def parse_yaml(location):
     with open(location, 'r') as f:
         config = yaml.safe_load(f)
-    if 'subconfig' in config:
-        subconfig = config['subconfig']
+
+    if 'DEFAULT' in config:
+        subconfig = config['DEFAULT']
         if not subconfig in config:
             raise Exception(f"Expecting provided subconfig {config['subconfig']} to be provided as dict")
     else:
@@ -20,8 +21,7 @@ def parse_yaml(location):
     if 'subconfig' in config[subconfig]:
         raise Exception(f"Not expecting subconfig an item of the {subconfig} dict")
 
-    config[subconfig]['subconfig'] = subconfig
-    return config[config['subconfig']]
+    return {**config[subconfig], 'subconfig': subconfig}
 
 
 def parse_section_recursive(config, subconfig, default_keys):
@@ -51,7 +51,7 @@ def parse_ini(location):
     config = configparser.ConfigParser()
     config.read(location)
 
-    if not 'subconfig' in config['DEFAULT']:
+    if 'subconfig' not in config['DEFAULT']:
         subconfig = 'default'
     else:
         subconfig = config['DEFAULT']['subconfig']
@@ -62,9 +62,6 @@ def parse_ini(location):
     result_config = parse_section_recursive(config, subconfig, config['DEFAULT'].keys())
     result_config.update({'subconfig': subconfig})
 
-    #config['DEFAULT']['subconfig'] = 'default'
-    # with open(location, 'w') as configfile:
-    #     config.write(configfile)
     return result_config
 
 
@@ -87,8 +84,9 @@ def try_open_and_parse_config(config_dict):
         location = possible_locations.pop(0)
         try:
             loaded_config = parse_config(location)
+            return loaded_config
         except Exception as e:
             last_location = unreadable_config_policy(location, len(possible_locations) > 0, e)
     if last_location:  # gives it a last try
         loaded_config = parse_config(last_location)
-    print(loaded_config)
+    return loaded_config
