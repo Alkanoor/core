@@ -8,4 +8,4 @@
 # from ..core31_policy.exception import format
 # from ..core31_policy.exception import strictness
 # from ..core31_policy.misc import dict_operations
-from ..core20_messaging.log import log_level
+from .policy import write_config

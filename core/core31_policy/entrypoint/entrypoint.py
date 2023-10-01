@@ -1,9 +1,9 @@
 from ..misc.dict_operations import update_dict_check_already_there
 from ...core10_parsing.parsing.string_transform import cli_string_transforms
-from ...core11_config.config import update_fixed
+from ...core11_config.config import update_fixed, enrich_config, nested_dict_to_dict
 from ...core11_config.policy.default_env import default_config_env
 from ...core11_config.policy.read_config import try_open_and_parse_config
-from ...core11_config.policy.write_config import write_config
+from ...core11_config.policy.write_config import write_config, write_current_config
 from ...core30_context.context_dependency_graph import context_dynamic_producer
 from ...core10_parsing.cli.registry import command_registry
 from ...core10_parsing.cli.simple_parse import simple_parse
@@ -47,7 +47,10 @@ def cli_entrypoint(ctxt: Context):
     parsed_cli_dict = simple_parse(sys.argv[1:])
     if 'mgr' in parsed_cli_dict:  # global configuration in this case,
         config_dict.update(command_registry['mgr']['callback'](parsed_cli_dict['mgr']))
-
+        if '.additional_options' in config_dict:
+            config_tuples = {f".{k}": v for k, v in config_dict['.additional_options']}
+            common_keys = update_dict_check_already_there(config_dict, config_tuples)
+            del config_dict['.additional_options']
     log_value = check_log_level_in_dict(config_dict, log_value)
 
 
@@ -68,13 +71,20 @@ def cli_entrypoint(ctxt: Context):
     print(common_keys)
     log_value = check_log_level_in_dict(config_dict, log_value)
 
-    parsed_config_file = try_open_and_parse_config(config_dict)
-    print(parsed_config_file)
-    print("parsed")
+    config_filename = config_dict.get('.config')
+    if '.config' in config_dict:
+        del config_dict['.config']
 
-    current_ctxt().setdefault('config', {}).update(parsed_config_file)
-
-    write_config(parsed_config_file, 'C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config.ini')
+    parsed_config_file = try_open_and_parse_config(config_filename, sub_config=config_dict.get('.sub_config'))
+    parsed_config_file_flat = nested_dict_to_dict(parsed_config_file)
+    common_keys = update_dict_check_already_there(config_dict, parsed_config_file_flat)
+    enrich_config(config_dict)
+    print(common_keys)
+    print(config_dict)
+    print(current_ctxt()['config'])
+    print("ooo")
+    write_current_config('C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config.ini')
+    write_current_config('C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config3.yaml')
 
     # parse config
     if base_options.config:

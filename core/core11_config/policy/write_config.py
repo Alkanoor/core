@@ -1,29 +1,34 @@
-import yaml
-
-from ..config import config_dependencies, Config
+from ..config import config_dependencies, Config, register_config_default, config_to_string
 
 from typing import Dict
 import configparser
+import yaml
 
 
 def compute_string_dict_hash(string_dict: Dict[str, str]):
     return hash(frozenset(sorted(string_dict.items())))
 
+
 def compute_hashes_for_sections(config_parser: configparser.ConfigParser):
     return {
-        compute_string_dict_hash(config_parser[section]): section for section in config_parser.sections()
+        compute_string_dict_hash(
+            {k: v for k, v in config_parser[section].items() if k not in config_parser['DEFAULT']}):
+            section for section in config_parser.sections()
     }
 
 
 def recursive_config_iterator(config: Config, config_parser: configparser.ConfigParser,
-                              hashes_for_sections: Dict[str, str]):
+                              hashes_for_sections: Dict[str, str], first: bool = False):
     config_parser_dict = {}
     for section_or_attribute, value in config.items():
         if isinstance(value, str):
             config_parser_dict[section_or_attribute] = value
+        elif isinstance(value, int):
+            config_parser_dict[section_or_attribute] = str(value)
         elif isinstance(value, dict):
-            subconfig = recursive_config_iterator(config[section_or_attribute], config_parser, hashes_for_sections)
-            config_parser_dict[f"{section_or_attribute}|dict"] = subconfig
+            sub_config = recursive_config_iterator(config[section_or_attribute], config_parser,
+                                                   hashes_for_sections)
+            config_parser_dict[f"{section_or_attribute}|dict"] = sub_config
         elif isinstance(value, list) or isinstance(value, set):
             if all([isinstance(v, str) for v in value]):
                 config_parser_dict[f"{section_or_attribute}|list"] = ','.join(value)
@@ -31,36 +36,40 @@ def recursive_config_iterator(config: Config, config_parser: configparser.Config
                 raise NotImplementedError
             else:
                 raise Exception(f"Mixing types not supported (expecting all strings or all dicts)")
+        else:
+            raise NotImplementedError
 
-    result_hash = compute_string_dict_hash(config_parser_dict)
-    if result_hash not in hashes_for_sections:
-        i = 0
-        while f"{section_or_attribute}-{i}" in config_parser.sections():
-            i += 1
-        hashes_for_sections[result_hash] = f"{section_or_attribute}-{i}"
-        config_parser[f"{section_or_attribute}-{i}"] = config_parser_dict
-    return hashes_for_sections[result_hash]
+    if not first:
+        result_hash = compute_string_dict_hash(config_parser_dict)
+        if result_hash not in hashes_for_sections:
+            i = 0
+            while f"{section_or_attribute}-{i}" in config_parser.sections():
+                i += 1
+            hashes_for_sections[result_hash] = f"{section_or_attribute}-{i}"
+            config_parser[f"{section_or_attribute}-{i}"] = config_parser_dict
+        return hashes_for_sections[result_hash]
+    else:
+        return config_parser_dict
 
 
 def write_config_ini(string_config: Dict[str, str | Dict], location: str):
     config_parser = configparser.ConfigParser()
+    config_parser.read(location)  # read it so that it can be compared to current state
 
-    config = configparser.ConfigParser()
-    config.read(location)  # read it so that it can be compared to current state
+    sub_config = string_config.get('sub_config', 'default')
+    config_parser['DEFAULT']['sub_config'] = sub_config
 
-    subconfig = string_config.get('subconfig', 'default')
-    config_parser['DEFAULT']['subconfig'] = subconfig
-    config_parser[subconfig] = {}
-
-    hashes_for_sections = compute_hashes_for_sections(config)
-    recursive_config_iterator(string_config, config_parser, hashes_for_sections)
+    hashes_for_sections = compute_hashes_for_sections(config_parser)
+    config_parser[sub_config] = recursive_config_iterator(
+        {k: v for k, v in string_config.items() if k != 'sub_config'},
+        config_parser, hashes_for_sections, True)
 
     with open(location, 'w') as configfile:
         config_parser.write(configfile)
 
 
 def write_config_yaml(config: Config, location: str):
-    subconfig = config.get('subconfig', 'default')
+    sub_config = config.get('sub_config', 'default')
 
     try:
         with open(location, 'r') as previous_conf:
@@ -68,10 +77,8 @@ def write_config_yaml(config: Config, location: str):
     except:
         to_write = {}
 
-    print("la")
-    print(config)
-    to_write.update({'DEFAULT': subconfig})
-    to_write.update({subconfig: config})
+    to_write.update({'DEFAULT': sub_config})
+    to_write.update({sub_config: {k: v for k, v in config.items() if k != 'sub_config'}})
 
     with open(location, 'w') as configfile:
         yaml.dump(to_write, configfile)
@@ -79,13 +86,15 @@ def write_config_yaml(config: Config, location: str):
 
 def write_config(config: Config, location: str):
     if location[-4:] == '.ini':
-        write_config_ini(config, location)
+        write_config_ini(config_to_string(config), location)
     elif location[-5:] == '.yaml' or location[-4:] == '.yml':
-        write_config_yaml(config, location)
+        write_config_yaml(config_to_string(config), location)
     else:
         raise Exception(f"Expecting some .ini, .yaml or .yml file as configuration input")
 
 
-@config_dependencies(('.subconfig', str))
+register_config_default('.sub_config', str, 'default')
+
+@config_dependencies(('.sub_config', str))
 def write_current_config(config: Config, location: str):
     write_config(config, location)

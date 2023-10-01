@@ -1,5 +1,6 @@
 from core.core31_policy.exception.strictness import raise_exception, ExceptionLevel
 from core.core31_policy.exception.format import ExceptionFormat
+from core.core20_messaging.log.log_level import LogLevel
 from core.core11_config.config import update_fixed
 
 
@@ -13,7 +14,7 @@ if __name__ == '__main__':
                 'format': ExceptionFormat.DEFAULT
             },
             'log': {
-                'log_level': logging.DEBUG
+                'log_level': LogLevel.DEBUG
             }
         },
     }
@@ -22,7 +23,7 @@ if __name__ == '__main__':
     current_ctxt().update(ctxt)
     raise_exception('test')
 
-    current_ctxt()['config'].update({'log': {'log_level': logging.INFO}})
+    current_ctxt()['config'].update({'log': {'log_level': LogLevel.INFO}})
     update_fixed('.log.log_level')
     raise_exception('test2')
 

@@ -1,15 +1,16 @@
 from ...core11_config.config import config_dependencies, Config
+from .log_level import LogLevel
 
 import logging
 
 
-@config_dependencies(('.log.log_level', int))
+@config_dependencies(('.log.log_level', LogLevel))
 def get_logger(config: Config, name: str):
     logger = logging.getLogger(name)
 
     handler = logging.StreamHandler()
-    handler.setLevel(config['log']['log_level'])
-    formatter = logging.Formatter('[%(levelname)s][%(asctime)s] %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
+    handler.setLevel(config['log']['log_level'].value)
+    formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
     handler.setFormatter(formatter)
 
     for hdlr in logger.handlers[:]:

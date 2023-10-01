@@ -19,9 +19,9 @@ register_config_default('.config.missing_config', MissingConfigPolicy, MissingCo
 @config_dependencies(('.config.missing_config', MissingConfigPolicy))
 @context_dependencies(('.interactor.ask', Callable[[...], str]))
 def missing_config_policy(ctxt: Context, config: Config, missing_configs: List[str], func_name: str):
-    if config['missing_config'] == MissingConfigPolicy.RAISE:
+    if config['config']['missing_config'] == MissingConfigPolicy.RAISE:
         raise Exception(f"Missing configuration for function {func_name}: {', '.join(missing_configs)}")
-    elif config['missing_config'] == MissingConfigPolicy.ASK:
+    elif config['config']['missing_config'] == MissingConfigPolicy.ASK:
         filled = {}
         for missing_config in missing_configs:
             filled[missing_config] = \

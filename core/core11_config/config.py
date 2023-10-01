@@ -53,8 +53,7 @@ def config_dependencies(*deps: Tuple[str, Type]):
                 filled_values = missing_config_policy(unknown_configs, key)
 
                 for attributes_string, value in filled_values.items():
-                    _config_value_or_default[attributes_string] = \
-                        (False, _config_value_or_default[attributes_string][1], value)
+                    _config_value_or_default[attributes_string] = (False, str, value)
                     set_dict_against_attributes_string(config, attributes_string, value)
                     if has_been_deep_copied:  # in this case the changes should be reported within the context
                         set_dict_against_attributes_string(context['config'], attributes_string, value)
@@ -84,13 +83,15 @@ def right_type_for(value, str_or_default_type):
                         or isinstance(value, int) and value == 0 else True
     if str_or_default_type == list or str_or_default_type == dict:
         return json.loads(value)
+    if issubclass(str_or_default_type, Enum):
+        return getattr(str_or_default_type, value)
     return str_or_default_type(value)
 
 
 def inverse_type_to_string(value):
     match value:
         case bool():
-            return
+            return 'true' if value else 'false'
         case int():
             return str(value)
         case str():
@@ -101,6 +102,17 @@ def inverse_type_to_string(value):
             return json.dumps(value)
         case _:
             raise NotImplementedError
+
+
+def _recursive_nested_dict_to_dict(nested_dict: Dict[str, Any], cur_prefix: str = ''):
+    for k, v in nested_dict.items():
+        if isinstance(v, dict):
+            yield from _recursive_nested_dict_to_dict(v, f"{cur_prefix}.{k}")
+        else:
+            yield f"{cur_prefix}.{k}", v
+
+def nested_dict_to_dict(nested_dict: Dict[str, Any]):
+    return {k: v for k, v in _recursive_nested_dict_to_dict(nested_dict)}
 
 
 def enrich_config(config_to_merge: Dict[str, Any]):
@@ -119,8 +131,7 @@ def config_to_string(with_default: bool = False):
         # only writing it if a specific value has been set or if explicitly asked to dump default
         if with_default or not _config_value_or_default[key][0]:
             set_dict_against_attributes_string(output, key,
-                                               inverse_type_to_string(_config_value_or_default[key][2],
-                                                                      _config_value_or_default[key][1]))
+                                               inverse_type_to_string(_config_value_or_default[key][2]))
     return output
 
 
