@@ -55,6 +55,3 @@ def current_ctxt():
     #         #         return _global_current_ctxt
     #         # _thread_local.current_ctxt = callback(_global_current_ctxt)
     #     return _thread_local.current_ctxt
-
-
-from .imports import *

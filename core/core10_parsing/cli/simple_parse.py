@@ -29,6 +29,15 @@ def default_recursive_parse(arguments_list: List[str], accumulated: Dict[str, An
 
 @context_producer(('.cli.parsed', Dict[str, Namespace]))
 def simple_parse(ctxt: Context, arguments_list: List[str]):
+    if not arguments_list:
+        ctxt.setdefault('cli', {}).update({'parsed': {}})
+        return {}
     after_parsing = default_recursive_parse(arguments_list, {})
     ctxt.setdefault('cli', {}).update({'parsed': after_parsing})
     return after_parsing
+
+
+def simple_parse_and_callback(arguments_list: List[str]):
+    parser = command_registry[arguments_list[0]]['parser']
+    parsed = parser.parse_args(arguments_list[1:])
+    return command_registry[arguments_list[0]]['callback'](parsed)

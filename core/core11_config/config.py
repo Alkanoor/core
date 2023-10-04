@@ -4,10 +4,12 @@ from enum import Enum
 import json
 import copy
 
+
 Config = Dict[str, Any]
 
 _dependencies_per_function = {}
 _functions_dependant_of = {}
+_default_value_for = {}
 _config_value_or_default: Dict[str, Tuple[bool, Type, Any]] = {}
 
 
@@ -74,6 +76,7 @@ def register_config_default(attribute_string, default_value_type, default_value)
         assert _config_value_or_default[attribute_string][0] is False, \
             f"Not allowing to register twice for the same default value location {attribute_string}"
     _config_value_or_default[attribute_string] = (True, default_value_type, default_value)
+    _default_value_for[attribute_string] = default_value
 
 
 # some tweaks there to convert from string to any correct type
@@ -148,7 +151,29 @@ def update_fixed(*attributes_strings: str):
             func()
 
 
+def modules():
+    all_keys = sorted(list({k.split('.')[1] for k in _config_value_or_default.keys() if k != '.sub_config'}))
+    return all_keys
+
+def subtrees_for_module(module: str):
+    all_keys = sorted(list({k.split('.')[2] for k in _config_value_or_default.keys() if k[1:len(module)+1] == module}))
+    return all_keys
+
+def subtree_at(prefix: str):
+    temp = {k for k in _config_value_or_default.keys()
+            if k[1:len(prefix)+1] == prefix}
+    print(temp)
+    return {
+        k: {
+            'current_value': inverse_type_to_string(_config_value_or_default[k][2]),
+            'type': f"{_config_value_or_default[k][1]}",
+            **({'possible_values': [e.name for e in _config_value_or_default[k][1]]}
+               if issubclass(_config_value_or_default[k][1], Enum) else {})
+        }
+        for k in temp
+    }
+
+
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string, set_dict_against_attributes_string
-from ..core31_policy.misc.dict_operations import update_dict_check_already_there
 from ..core30_context.context_dependency_graph import is_context_producer
 from ..core30_context.context import current_ctxt

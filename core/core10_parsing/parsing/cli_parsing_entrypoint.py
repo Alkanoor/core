@@ -25,7 +25,7 @@ arguments = [
 
 different_matching = {
     'subconfig': '.sub_config',
-    'loglevel': '.log_level',
+    'loglevel': '.log.log_level',
     'envregex': '.env_regex',
     'set': '.additional_options'
 }

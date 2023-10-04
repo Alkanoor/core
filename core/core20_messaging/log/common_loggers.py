@@ -1,8 +1,8 @@
 from core.core30_context.context_dependency_graph import context_producer
 from core.core11_config.config import config_dependencies, Config
-from core.core20_messaging.log.log_level import LogLevel
-from core.core20_messaging.log.logger import get_logger
 from core.core30_context.context import Context
+from .log_level import LogLevel
+from .logger import get_logger
 
 from logging import Logger, DEBUG, INFO
 

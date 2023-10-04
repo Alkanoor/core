@@ -1,5 +1,5 @@
 from core.core30_context.context_dependency_graph import context_dependencies
-from core.core31_policy.exception.strictness import raise_exception
+from core.core31_policy.exception.strictness import raise_exception_from_string
 from core.core30_context.context import Context
 
 from typing import Callable, Any
@@ -27,7 +27,7 @@ def error_when_processing_array(ctxt: Context, encountered_error_policy: Encount
             encountered_error_policy == EncounteredErrorArrayProcessing.VERBOSE_GO_NEXT_RAISE_AT_END or \
             encountered_error_policy == EncounteredErrorArrayProcessing.VERBOSE_GO_NEXT_ASK_AT_END:
         if not encountered_error_policy == EncounteredErrorArrayProcessing.GO_NEXT_RAISE_AT_END:
-            raise_exception(f"Error attempting to {failed_attempt_message} failed: {raised_exception}")
+            raise_exception_from_string(f"Error attempting to {failed_attempt_message} failed: {raised_exception}")
         if not remaining_items_to_test:
             if encountered_error_policy == EncounteredErrorArrayProcessing.VERBOSE_GO_NEXT_ASK_AT_END:
                 return exit_or_specify_manually(ctxt)
@@ -38,7 +38,7 @@ def error_when_processing_array(ctxt: Context, encountered_error_policy: Encount
     elif encountered_error_policy == EncounteredErrorArrayProcessing.ASK or \
             encountered_error_policy == EncounteredErrorArrayProcessing.VERBOSE_ASK:
         if encountered_error_policy == EncounteredErrorArrayProcessing.VERBOSE_ASK:
-            raise_exception(f"Error attempting to {failed_attempt_message} failed: {raised_exception}")
+            raise_exception_from_string(f"Error attempting to {failed_attempt_message} failed: {raised_exception}")
         if remaining_items_to_test:
             exit_or_ask = ctxt['interactor']['ask_boolean']({'c': True, 'e': False}) \
                 (f"{continue_message} Continue (c) Exit (e)")

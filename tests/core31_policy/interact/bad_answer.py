@@ -1,5 +1,5 @@
 from core.core30_context.context_dependency_graph import context_dependencies
-from core.core31_policy.interact.bad_answer import BadAnswerPolicy
+from core.core21_interaction.policy.bad_answer import BadAnswerPolicy
 from core.core20_messaging.log.common_loggers import main_logger
 from core.core20_messaging.log.log_level import LogLevel
 from core.core11_config.config import update_fixed
@@ -8,7 +8,6 @@ from typing import Callable
 
 
 if __name__ == '__main__':
-    import logging
 
     ctxt = {
         'config': {

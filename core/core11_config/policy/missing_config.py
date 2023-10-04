@@ -1,6 +1,6 @@
 from core.core11_config.config import Config, register_config_default, config_dependencies
 from core.core30_context.context_dependency_graph import context_dependencies
-from core.core31_policy.exception.strictness import raise_exception
+from core.core31_policy.exception.strictness import raise_exception_from_string
 from core.core30_context.context import Context
 
 from typing import List, Callable
@@ -31,5 +31,5 @@ def missing_config_policy(ctxt: Context, config: Config, missing_configs: List[s
         filled = ctxt['interactor']['ask'](f"Configuration for missing items at {func_name}?", dict, missing_configs)
         return filled
     else:
-        raise_exception(f"Non allowed value {config['missing_config']} provided for {MissingConfigPolicy}")
+        raise_exception_from_string(f"Non allowed value {config['missing_config']} provided for {MissingConfigPolicy}")
         return {}

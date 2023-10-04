@@ -1,4 +1,4 @@
-from ...core31_policy.interact.error_follow_up import error_when_processing_array, EncounteredErrorArrayProcessing
+from core.core21_interaction.policy.error_follow_up import error_when_processing_array, EncounteredErrorArrayProcessing
 from ...core11_config.config import Config, register_config_default, config_dependencies
 from ...core30_context.context import Context
 
