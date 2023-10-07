@@ -1,5 +1,6 @@
 import yaml
 
+from ...core22_action.policy.write import write_data, OutputFormat
 from ...core99_misc.fakejq.utils import check_dict_against_attributes_string
 from ..config import Config, config_dependencies, modules, subtrees_for_module, subtree_at
 
@@ -34,5 +35,4 @@ def config_help(parsed: Namespace):
             parsed.prefix: subtree_at(parsed.prefix)
         })
 
-    print(yaml.dump(data))
-    raise NotImplementedError
+    write_data(data, getattr(OutputFormat, parsed.outformat.upper()) if parsed.outformat else None, parsed.out)

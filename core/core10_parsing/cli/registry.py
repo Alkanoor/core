@@ -15,6 +15,7 @@ def register_simple_parsing(command: str,
                             description: str = None):
     assert command not in command_registry, f"Command {command} already in registry, please register another name"
     arg_parser = argparse.ArgumentParser(prog=command, description=description, exit_on_error=False)
+    arg_parser.exit = lambda *args: None
 
     if arguments:
         for positional, optional in arguments:
@@ -24,7 +25,10 @@ def register_simple_parsing(command: str,
     if subparsers:
         subparsers_for_parser = arg_parser.add_subparsers(dest='command')
         for subparser_name in subparsers:
-            subparser = subparsers_for_parser.add_parser(subparser_name, description=subparsers[subparser_name]['description'])
+            subparser = subparsers_for_parser.add_parser(subparser_name,
+                                                         description=subparsers[subparser_name]['description'],
+                                                         exit_on_error=False)
+            subparser.exit = lambda *args: None
             for positional, optional in subparsers[subparser_name]['arguments']:
                 subparser.add_argument(*positional, **optional)
             subparsers_in_registry[subparser_name] = subparser

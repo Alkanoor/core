@@ -1,5 +1,6 @@
-from typing import Callable
+from typing import Callable, Dict
 
+from ..exception.strictness import raise_exception
 from ..misc.dict_operations import update_dict_check_already_there
 from ...core10_parsing.parsing.string_transform import cli_string_transforms
 from ...core10_parsing.policy.no_action import no_action_parsed
@@ -34,23 +35,8 @@ def check_log_level_in_dict(config_dict, current_log_level):
     return -1
 
 
-@context_dependencies(('.interactor.parsing_no_action', Callable[[], None], False))
-def cli_entrypoint(ctxt: Context):
-    # this is going to determine the final log level (as it can change depending on each parsing step
-    # and on dict merge policy)
-    log_value = -1
-    config_dict = {}
-
-    # parse CLI args
-    parsed_cli_dict = simple_parse(sys.argv[1:])
-    if 'mgr' in parsed_cli_dict:  # global configuration in this case,
-        config_dict.update(command_registry['mgr']['callback'](parsed_cli_dict['mgr']))
-        if '.additional_options' in config_dict:
-            config_tuples = {f".{k}": v for k, v in config_dict['.additional_options']}
-            common_keys = update_dict_check_already_there(config_dict, config_tuples)
-            del config_dict['.additional_options']
-    log_value = check_log_level_in_dict(config_dict, log_value)
-
+def do_config_parsing(config_dict: Dict):
+    log_value = current_ctxt().get('config', {}).get('log', {}).get('log_level', -1)
 
     # parse main environment arguments (only config and database, next C2 but if no database is provided atm it's over)
     key_envkeys, env_associations = default_config_env()
@@ -73,17 +59,38 @@ def cli_entrypoint(ctxt: Context):
     parsed_config_file = try_open_and_parse_config(config_filename, sub_config=config_dict.get('.sub_config'))
     parsed_config_file_flat = nested_dict_to_dict(parsed_config_file)
     common_keys = update_dict_check_already_there(config_dict, parsed_config_file_flat)
-    enrich_config(config_dict)
-    print(common_keys)
-    print(config_dict)
-    print(current_ctxt()['config'])
+    try:  # not very clean, TODO: find a cleaner alternative to raise the appropriate exception in raise_exception
+        try:  # we do this to have a cleaner error message when the parsing failed because of some enum
+            enrich_config(config_dict)
+        except Exception as e:
+            raise Exception(f"Unable to enrich parsing ({e}), please check all enums within your config"
+                            f" (config help if needed)") from e
+    except Exception as e:
+        raise_exception(e)
     write_current_config('C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config.ini')
     write_current_config('C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config3.yaml')
 
     # parse BDD
-    #from_bdd = parse_bdd_config()
+    # from_bdd = parse_bdd_config()
     # parse C2, ...
-    #from_c2 = parse_c2_config()
+    # from_c2 = parse_c2_config()
+
+
+@context_dependencies(('.interactor.parsing_no_action', Callable[[], None], False))
+def cli_entrypoint(ctxt: Context):
+    # this is going to determine the final log level (as it can change depending on each parsing step
+    # and on dict merge policy)
+    log_value = -1
+    config_dict = {}
+
+    # parse CLI args
+    parsed_cli_dict = simple_parse(sys.argv[1:])
+    if 'mgr' in parsed_cli_dict:  # global configuration in this case,
+        # the manager callback is supposed to internally rebuild the config (do the do_config_parsing)
+        config_dict.update(command_registry['mgr']['callback'](parsed_cli_dict['mgr']))
+    else:
+        do_config_parsing(config_dict)
+    log_value = check_log_level_in_dict(config_dict, log_value)
 
 
     # now all is parsed, current_context['config'] is ready, give it to following layers
@@ -93,7 +100,6 @@ def cli_entrypoint(ctxt: Context):
         if key != 'mgr':
             at_least_one_action = True
             result = command_registry[key]['callback'](value)
-            print(result)
 
     if not at_least_one_action:
         no_action_parsed()

@@ -1,40 +1,41 @@
-import os.path
-from logging import Logger
-
 from ...core11_config.config import register_config_default, config_dependencies, Config
 from ...core30_context.context_dependency_graph import context_producer, context_dependencies
 from ...core30_context.context import Context
 from .send import default_send_cli
 
 from typing import Callable, Any
-from enum import Enum
+from logging import Logger
+from enum import Enum, auto
+import os.path
 import json
 import yaml
 
 
 class WriteOnExistingFile(Enum):
-    RAISE = Enum.auto()
-    WARNING_DONT_DO = Enum.auto()
-    WARNING_DO = Enum.auto()
-    APPEND = Enum.auto()
-    SILENT_DONT_DO = Enum.auto()
-    SILENT_DO = Enum.auto()
+    RAISE = auto()
+    WARNING_DONT_DO = auto()
+    WARNING_DO = auto()
+    APPEND = auto()
+    SILENT_DONT_DO = auto()
+    SILENT_DO = auto()
 
 class EnforceFormatFromExt(Enum):
-    EXT_TO_FORMAT = Enum.auto()
-    DONT_CARE = Enum.auto()
+    EXT_TO_FORMAT = auto()
+    DONT_CARE = auto()
 
 class OutputFormat(Enum):
-    TXT = Enum.auto()
-    JSON = Enum.auto()
-    YAML = Enum.auto()
+    TEXT = auto()
+    JSON = auto()
+    YAML = auto()
+    INI = auto()
 
-register_config_default(('.interactor.output.file.rewrite_behavior', WriteOnExistingFile,
-                         WriteOnExistingFile.WARNING_DONT_DO))
-register_config_default(('.interactor.output.file.rewrite_behavior_if_forced', WriteOnExistingFile,
-                         WriteOnExistingFile.WARNING_DO))
-register_config_default(('.interactor.output.ext_behavior', EnforceFormatFromExt, EnforceFormatFromExt.EXT_TO_FORMAT))
-register_config_default(('.interactor.output.format', OutputFormat, OutputFormat.TXT))
+
+register_config_default('.interactor.output.file.rewrite_behavior', WriteOnExistingFile,
+                        WriteOnExistingFile.WARNING_DONT_DO)
+register_config_default('.interactor.output.file.rewrite_behavior_if_forced', WriteOnExistingFile,
+                        WriteOnExistingFile.WARNING_DO)
+register_config_default('.interactor.output.ext_behavior', EnforceFormatFromExt, EnforceFormatFromExt.EXT_TO_FORMAT)
+register_config_default('.interactor.output.format', OutputFormat, OutputFormat.TEXT)
 
 
 @config_dependencies(('.interactor.output.ext_behavior', EnforceFormatFromExt),
@@ -53,14 +54,14 @@ def format_data(ctxt: Context, config: Config, data: Any, output_format: OutputF
             elif lower_dst == '.yaml' or lower_dst[-4:] == '.yml':
                 fmt = OutputFormat.YAML
             else:
-                fmt = OutputFormat.TXT
+                fmt = OutputFormat.TEXT
             if output_format and fmt != output_format:
                 ctxt['log']['debug_logger'].debug(f"Specified output format {output_format}"
                                                   f" not considered regarding extension {fmt}")
     else:
         raise NotImplementedError
 
-    if fmt == OutputFormat.TXT:
+    if fmt == OutputFormat.TEXT:
         return f"{data}"
     elif fmt == OutputFormat.JSON:
         return json.dumps(data)
@@ -111,7 +112,7 @@ def write_data(ctxt: Context, config: Config, input_data: Any, output_format: Ou
 
 @context_producer(('.interactor.output.write_to', Callable[[str], None]))
 @context_dependencies(('.interactor.local', bool, False), ('.interactor.cli', bool, False))  # dynamically generated
-def write_data(ctxt: Context):
+def output_write_to(ctxt: Context):
     if ctxt['interactor']['local'] and ctxt['interactor']['type'] == 'cli':
         ctxt['interactor'].setdefault('output', {})['write_to'] = default_send_cli
     else:

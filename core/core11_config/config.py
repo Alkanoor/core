@@ -87,6 +87,8 @@ def right_type_for(value, str_or_default_type):
     if str_or_default_type == list or str_or_default_type == dict:
         return json.loads(value)
     if issubclass(str_or_default_type, Enum):
+        if isinstance(value, str_or_default_type):
+            return value
         return getattr(str_or_default_type, value)
     return str_or_default_type(value)
 

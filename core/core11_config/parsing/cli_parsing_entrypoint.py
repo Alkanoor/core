@@ -31,7 +31,7 @@ arguments_help = [
     (['--prefix', '-p'], {'help': 'Set the subtree to perform list operations on (this requires a module provided)'}),
     (['--out', '-o'], {'help': 'Output the configuration options within the given file'}),
     (['--outformat', '-of'], {'help': 'Set the (optional) output format in case an output file is given',
-                              'choices': ['text', 'json', 'yaml', 'ini', 'html']}),
+                              'choices': ['text', 'json', 'yaml', 'ini']}),
 ]
 
 arguments_use = [

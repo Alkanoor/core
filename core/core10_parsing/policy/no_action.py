@@ -14,10 +14,6 @@ class BasicArgparseREPL(cmd.Cmd):
     prompt = '/> '
 
     def onecmd(self, command: str):
-        print(command)
-        import os
-        print(os.environ['log_level'])
-        print(shlex.split(command))
         try:
             ns_per_command = simple_parse(shlex.split(command))
             for key in ns_per_command:
