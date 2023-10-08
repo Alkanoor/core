@@ -91,9 +91,24 @@ def try_open_and_parse_config(ctxt: Context, possible_config_path: str | None = 
         try:
             loaded_config = parse_config(location, sub_config)
             ctxt['log']['main_logger'].info(f"Successfully parsed configuration {location}")
-            return loaded_config
+            return location, loaded_config
         except Exception as e:
             last_location = unreadable_config_policy(location, len(possible_locations) > 0, e)
     if last_location:  # gives it a last try
         loaded_config = parse_config(last_location, sub_config)
-    return loaded_config
+    return last_location, loaded_config
+
+
+def list_subconfigs(location: str):
+    if location[-4:] == '.ini':
+        with open(location, 'r') as _:  # raise exception is not existing, otherwise configparser does not
+            pass
+        config = configparser.ConfigParser()
+        config.read(location)
+        return config.sections()
+    elif location[-5:] == '.yaml' or location[-4:] == '.yml':
+        with open(location, 'r') as f:
+            config = yaml.safe_load(f)
+            return list(config.keys())
+    else:
+        raise Exception(f"Expecting some .ini, .yaml or .yml file as configuration input")

@@ -124,10 +124,16 @@ def enrich_config(config_to_merge: Dict[str, Any]):
     rightly_typed = {
         k: right_type_for(v, _config_value_or_default.get(k, (str, str))[1]) for k, v in config_to_merge.items()
     }
+    updated_attributes = []
     context = current_ctxt()
     context.setdefault('config', {})
     for key in rightly_typed:
         set_dict_against_attributes_string(context['config'], key, rightly_typed[key])
+        if key in _config_value_or_default:
+            if _config_value_or_default[key][0]:
+                updated_attributes.append(key)
+            _config_value_or_default[key] = (False, _config_value_or_default[key][1], rightly_typed[key])
+    update_fixed(*updated_attributes)
 
 
 def config_to_string(with_default: bool = False):
@@ -163,8 +169,7 @@ def subtrees_for_module(module: str):
 
 def subtree_at(prefix: str):
     temp = {k for k in _config_value_or_default.keys()
-            if k[1:len(prefix)+1] == prefix}
-    print(temp)
+            if k[1:len(prefix)+1] == prefix or not prefix}
     return {
         k: {
             'current_value': inverse_type_to_string(_config_value_or_default[k][2]),

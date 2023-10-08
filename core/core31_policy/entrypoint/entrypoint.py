@@ -1,18 +1,16 @@
-from typing import Callable, Dict
-
-from ..exception.strictness import raise_exception
-from ..misc.dict_operations import update_dict_check_already_there
 from ...core10_parsing.parsing.string_transform import cli_string_transforms
 from ...core10_parsing.policy.no_action import no_action_parsed
-from ...core11_config.config import update_fixed, enrich_config, nested_dict_to_dict
+from ...core11_config.config import enrich_config
+from ...core11_config.parsing.use import convert_conf_and_enrich
 from ...core11_config.policy.default_env import default_config_env
 from ...core11_config.policy.read_config import try_open_and_parse_config
-from ...core11_config.policy.write_config import write_current_config
-from ...core30_context.context_dependency_graph import context_dynamic_producer, context_dependencies
+from ...core30_context.context_dependency_graph import context_dependencies
 from ...core10_parsing.cli.registry import command_registry
 from ...core10_parsing.cli.simple_parse import simple_parse
 from ...core30_context.context import Context, current_ctxt
+from ..misc.dict_operations import update_dict_check_already_there
 
+from typing import Callable, Dict
 import regex
 import sys
 import os
@@ -30,7 +28,6 @@ def check_log_level_in_dict(config_dict, current_log_level):
     if '.log.log_level' in config_dict:
         if current_log_level != config_dict['.log.log_level']:
             enrich_config({'.log.log_level': config_dict['.log.log_level']})
-            update_fixed('.log.log_level')
         return config_dict['.log.log_level']
     return -1
 
@@ -56,19 +53,9 @@ def do_config_parsing(config_dict: Dict):
     if '.config' in config_dict:
         del config_dict['.config']
 
-    parsed_config_file = try_open_and_parse_config(config_filename, sub_config=config_dict.get('.sub_config'))
-    parsed_config_file_flat = nested_dict_to_dict(parsed_config_file)
-    common_keys = update_dict_check_already_there(config_dict, parsed_config_file_flat)
-    try:  # not very clean, TODO: find a cleaner alternative to raise the appropriate exception in raise_exception
-        try:  # we do this to have a cleaner error message when the parsing failed because of some enum
-            enrich_config(config_dict)
-        except Exception as e:
-            raise Exception(f"Unable to enrich parsing ({e}), please check all enums within your config"
-                            f" (config help if needed)") from e
-    except Exception as e:
-        raise_exception(e)
-    write_current_config('C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config.ini')
-    write_current_config('C:\\Users\\Alka\\AppData\\Roaming\\mgr\\config3.yaml')
+    location, parsed_config_file = try_open_and_parse_config(config_filename, sub_config=config_dict.get('.sub_config'))
+    config_dict['.config_location'] = location
+    convert_conf_and_enrich(parsed_config_file, config_dict)
 
     # parse BDD
     # from_bdd = parse_bdd_config()

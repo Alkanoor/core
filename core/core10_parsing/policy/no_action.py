@@ -1,5 +1,5 @@
-from core.core10_parsing.cli.registry import command_registry
 from core.core30_context.context_dependency_graph import context_producer, context_dependencies
+from core.core10_parsing.cli.registry import command_registry
 from core.core10_parsing.cli.simple_parse import simple_parse
 from core.core30_context.context import Context
 

@@ -3,7 +3,13 @@ from ..config import config_dependencies, Config, register_config_default, confi
 from typing import Dict
 import configparser
 import yaml
+import io
 
+
+non_writable_attributes = {
+    'sub_config',
+    'config_location',
+}
 
 def compute_string_dict_hash(string_dict: Dict[str, str]):
     return hash(frozenset(sorted(string_dict.items())))
@@ -52,6 +58,18 @@ def recursive_config_iterator(config: Config, config_parser: configparser.Config
         return config_parser_dict
 
 
+def format_ini_dict(string_dict: Dict[str, str | Dict]):
+    cp = configparser.ConfigParser()
+    if 'DEFAULT' in string_dict:
+        cp['DEFAULT'] = string_dict['DEFAULT']
+    recursive_config_iterator({k: v for k, v in string_dict.items() if k != 'DEFAULT'}, cp, {}, True)
+
+    with io.StringIO() as ss:
+        cp.write(ss)
+        ss.seek(0)
+        return ss.read()
+
+
 def write_config_ini(string_config: Dict[str, str | Dict], location: str):
     config_parser = configparser.ConfigParser()
     config_parser.read(location)  # read it so that it can be compared to current state
@@ -61,8 +79,11 @@ def write_config_ini(string_config: Dict[str, str | Dict], location: str):
 
     hashes_for_sections = compute_hashes_for_sections(config_parser)
     config_parser[sub_config] = recursive_config_iterator(
-        {k: v for k, v in string_config.items() if k != 'sub_config'},
-        config_parser, hashes_for_sections, True)
+        {k: v for k, v in string_config.items() if k not in non_writable_attributes},
+        config_parser,
+        hashes_for_sections,
+        True
+    )
 
     with open(location, 'w') as configfile:
         config_parser.write(configfile)
@@ -78,7 +99,7 @@ def write_config_yaml(config: Config, location: str):
         to_write = {}
 
     to_write.update({'DEFAULT': sub_config})
-    to_write.update({sub_config: {k: v for k, v in config.items() if k != 'sub_config'}})
+    to_write.update({sub_config: {k: v for k, v in config.items() if k not in non_writable_attributes}})
 
     with open(location, 'w') as configfile:
         yaml.dump(to_write, configfile)

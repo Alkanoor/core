@@ -32,7 +32,7 @@ def unreadable_config_policy(config: Config,
     encountered_error_policy = config['config']['unreadable_config']
     failed_attempt_message = f"read config {failed_config}"
     no_more_items_message = 'No more configuration file available'
-    continue_message = 'Check next configuration?'
+    continue_message = f"Unable to read {failed_config}, check next configuration?"
     exit_or_specify_manually = exit_or_specify_conf
     return error_when_processing_array(encountered_error_policy, remaining_files_to_test, raised_exception,
                                        failed_attempt_message, no_more_items_message, continue_message,

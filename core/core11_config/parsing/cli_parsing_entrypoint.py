@@ -1,48 +1,22 @@
 from ...core10_parsing.cli.registry import register_simple_parsing, help_back_to_user
-from .help import config_help
+from .show import config_show, arguments_show
+from .help import config_help, arguments_help
+from .list import config_list, arguments_list
+from .use import config_use, arguments_use
+from .set import config_set, arguments_set
 
 from argparse import Namespace
 
-
-arguments_show = [
-    (['--subconfig', '-sc'], {'help': 'Sub-configuration block to show (default to None = all configs displayed)',
-                              'default': 'default'}),
-]
-
-arguments_set = [
-    (['--subconfig', '-sc'], {'help': 'Sub-configuration block to set (default to default)'}),
-    (['--loglevel', '-l'], {'help': 'Global logger value',
-                            'choices': ['error', 'warning', 'info', 'debug']}),
-    (['--database', '-d'], {'help': 'Global database holding all the application state (including further contexts)'}),
-    (['--set'], {'help': 'Additional configuration options',
-                 'action': 'append'}),
-    (['--out', '-o'], {'help': 'Output the configuration options within the given file (instead of current one)'}),
-    (['--outformat', '-of'], {'help': 'Set the (optional) output format in case an output file is given',
-                              'choices': ['yaml', 'ini']}),
-]
-
-# this one holds some mutually exclusive argument groups but this is not handled yet
-arguments_help = [
-    (['--modules', '-ms'], {'help': 'List all available modules in which some config options can be set',
-                            'action': 'store_true'}),
-    (['--module', '-m'], {'help': 'Set the module to perform list operations on'}),
-    (['--subtrees', '-sts'], {'help': 'List all available subtrees for module in which some config options can be set',
-                             'action': 'store_true'}),
-    (['--prefix', '-p'], {'help': 'Set the subtree to perform list operations on (this requires a module provided)'}),
-    (['--out', '-o'], {'help': 'Output the configuration options within the given file'}),
-    (['--outformat', '-of'], {'help': 'Set the (optional) output format in case an output file is given',
-                              'choices': ['text', 'json', 'yaml', 'ini']}),
-]
-
-arguments_use = [
-    (['subconfig'], {'help': 'Sub-configuration block to use (set as default)'}),
-]
 
 arguments_save_db = [
     (['--name', '-n'], {'help': 'Configuration name to save config as in database'}),
 ]
 
 subparsers = {
+    'list': {
+        'description': 'List all available subconfigs',
+        'arguments': arguments_list,
+    },
     'show': {
         'description': 'Show the target configuration (or all if none is provided)',
         'arguments': arguments_show,
@@ -68,14 +42,21 @@ subparsers = {
 
 
 def deal_with_parsed_data(parsed_data: Namespace):
-    print(parsed_data)
     help_back = False
     if parsed_data.command == 'set':
-        print("SET")
+        config_set(parsed_data)
     elif parsed_data.command == 'use':
-        print("USE")
+        if not parsed_data.subconfig:
+            help_back = True
+        config_use(parsed_data)
+    elif parsed_data.command == 'list':
+        config_list(parsed_data)
+    elif parsed_data.command == 'show':
+        config_show(parsed_data)
+    elif parsed_data.command == 'savedb':
+        raise NotImplementedError
     elif parsed_data.command == 'help':
-        if not parsed_data.modules and not parsed_data.subtrees and not parsed_data.prefix:
+        if not parsed_data.modules and not parsed_data.subtrees and parsed_data.prefix is None:
             help_back = True
         else:
             config_help(parsed_data)

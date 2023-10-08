@@ -40,7 +40,9 @@ def raise_exception(ctxt: Context, config: Config, exc: Exception):
         raise exc
     elif config['exception']['level'] == ExceptionLevel.LAX or config['exception']['level'] == ExceptionLevel.IGNORE:
         if config['exception']['level'] == ExceptionLevel.LAX:
-            ctxt['log']['main_logger'].warning(f"{exc}")
+            formatted_exc = f"{exc}"
+            if formatted_exc:
+                ctxt['log']['main_logger'].warning(f"{formatted_exc}")
         if ctxt['log']['debug_logger']:
             ctxt['log']['debug_logger'].debug(
                 ''.join(traceback.format_exception(exc, value=exc, tb=exc.__traceback__))
