@@ -1,4 +1,5 @@
 from ...core10_parsing.cli.registry import register_simple_parsing, help_back_to_user
+from .save_db import config_save_db, arguments_save_db
 from .show import config_show, arguments_show
 from .help import config_help, arguments_help
 from .list import config_list, arguments_list
@@ -7,10 +8,6 @@ from .set import config_set, arguments_set
 
 from argparse import Namespace
 
-
-arguments_save_db = [
-    (['--name', '-n'], {'help': 'Configuration name to save config as in database'}),
-]
 
 subparsers = {
     'list': {

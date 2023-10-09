@@ -19,7 +19,6 @@ def convert_conf_and_enrich(parsed_config_file, config_dict=None):
     common_keys = update_dict_check_already_there(config_dict, parsed_config_file_flat)
     try:  # not very clean, TODO: find a cleaner alternative to raise the appropriate exception in raise_exception
         try:  # we do this to have a cleaner error message when the parsing failed because of some enum
-            print(config_dict)
             enrich_config(config_dict)
         except Exception as e:
             raise Exception(f"Unable to enrich parsing ({e}), please check all enums within your config"

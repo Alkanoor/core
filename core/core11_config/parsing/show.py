@@ -18,6 +18,17 @@ arguments_show = [
                               'choices': ['text', 'json', 'yaml', 'ini']}),
 ]
 
+
+def dict_to_display(subconfig, outformat, config_dict):
+    return {
+        'DEFAULT': {
+            'sub_config': subconfig,
+        } if outformat and outformat.upper() == 'INI' else subconfig,
+        subconfig: {
+            k: v for k, v in config_dict.items() if k not in non_writable_attributes
+        }
+    }
+
 def config_show(parsed: Namespace):
     config_dict = config_to_string(parsed.withdefault)
 
@@ -31,13 +42,6 @@ def config_show(parsed: Namespace):
             config_dict = config_dict_from_file
 
     subconfig = parsed.sub_config if parsed.sub_config else config_dict['sub_config']
-    dict_to_show = {
-        'DEFAULT': {
-            'sub_config': subconfig,
-        } if parsed.outformat and parsed.outformat.upper() == 'INI' else subconfig,
-        subconfig: {
-            k: v for k, v in config_dict.items() if k not in non_writable_attributes
-        }
-    }
+    dict_to_show = dict_to_display(subconfig, parsed.outformat, config_dict)
 
     write_data(dict_to_show, getattr(OutputFormat, parsed.outformat.upper()) if parsed.outformat else None, parsed.out)

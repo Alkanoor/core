@@ -1,6 +1,5 @@
 from ...core11_config.config import register_config_default, config_dependencies, Config
 from ...core30_context.context_dependency_graph import context_producer, context_dependencies
-from ...core11_config.policy.write_config import format_ini_dict
 from ...core30_context.context import Context
 from .send import default_send_cli
 
@@ -105,6 +104,7 @@ def format_data(ctxt: Context, config: Config, data: Any, output_format: OutputF
     elif fmt == OutputFormat.YAML:
         return yaml.dump(data)
     elif fmt == OutputFormat.INI:
+        from ...core11_config.policy.write_config import format_ini_dict
         return format_ini_dict(data)
     else:
         raise NotImplementedError

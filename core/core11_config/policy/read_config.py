@@ -32,7 +32,6 @@ def parse_section_recursive(config, sub_config, default_keys):
     result = {}
     for k, v in config[sub_config].items():
         if k not in default_keys:
-            print(k, v)
             if '|' in k:
                 name, t = k.split('|')
                 if t == 'list':

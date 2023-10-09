@@ -5,6 +5,7 @@ import configparser
 import yaml
 import io
 
+from ...core22_action.policy.write import OutputFormat, write_data
 
 non_writable_attributes = {
     'sub_config',
@@ -58,11 +59,14 @@ def recursive_config_iterator(config: Config, config_parser: configparser.Config
         return config_parser_dict
 
 
-def format_ini_dict(string_dict: Dict[str, str | Dict]):
-    cp = configparser.ConfigParser()
-    if 'DEFAULT' in string_dict:
-        cp['DEFAULT'] = string_dict['DEFAULT']
-    recursive_config_iterator({k: v for k, v in string_dict.items() if k != 'DEFAULT'}, cp, {}, True)
+def format_ini_dict(string_dict_or_cp: Dict[str, str | Dict] | configparser.ConfigParser):
+    if not isinstance(string_dict_or_cp, configparser.ConfigParser):
+        cp = configparser.ConfigParser()
+        if 'DEFAULT' in string_dict_or_cp:
+            cp['DEFAULT']['sub_config'] = string_dict_or_cp['DEFAULT']
+        recursive_config_iterator({k: v for k, v in string_dict_or_cp.items() if k != 'DEFAULT'}, cp, {}, True)
+    else:
+        cp = string_dict_or_cp
 
     with io.StringIO() as ss:
         cp.write(ss)
@@ -70,11 +74,11 @@ def format_ini_dict(string_dict: Dict[str, str | Dict]):
         return ss.read()
 
 
-def write_config_ini(string_config: Dict[str, str | Dict], location: str):
+def write_config_ini(string_config: Dict[str, str | Dict], location: str, sub_config: str | None = None):
     config_parser = configparser.ConfigParser()
     config_parser.read(location)  # read it so that it can be compared to current state
 
-    sub_config = string_config.get('sub_config', 'default')
+    sub_config = string_config.get('sub_config', 'default') if not sub_config else sub_config
     config_parser['DEFAULT']['sub_config'] = sub_config
 
     hashes_for_sections = compute_hashes_for_sections(config_parser)
@@ -85,24 +89,22 @@ def write_config_ini(string_config: Dict[str, str | Dict], location: str):
         True
     )
 
-    with open(location, 'w') as configfile:
-        config_parser.write(configfile)
+    write_data(config_parser, OutputFormat.INI, location)
 
 
-def write_config_yaml(config: Config, location: str):
-    sub_config = config.get('sub_config', 'default')
+def write_config_yaml(config: Config, location: str, sub_config: str | None = None):
+    sub_config = config.get('sub_config', 'default') if not sub_config else sub_config
 
     try:
         with open(location, 'r') as previous_conf:
             to_write = yaml.safe_load(previous_conf)
-    except:
+    except IOError:
         to_write = {}
 
     to_write.update({'DEFAULT': sub_config})
     to_write.update({sub_config: {k: v for k, v in config.items() if k not in non_writable_attributes}})
 
-    with open(location, 'w') as configfile:
-        yaml.dump(to_write, configfile)
+    write_data(to_write, OutputFormat.YAML, location)
 
 
 def write_config(config: Config, location: str):

@@ -23,7 +23,7 @@ def already_in_dict(ctxt: Context, config: Config,
                     raise_if_strict: bool = False, no_print: bool = False):
     common_keys = set(initial_dict.keys()).intersection(set(dict_to_merge_into.keys()))
     optional_debug_logger = ctxt['log']['debug_logger']
-    if optional_debug_logger and common_keys:
+    if optional_debug_logger and common_keys and not no_print:
         optional_debug_logger.debug(f"Common keys {common_keys} between the two provided dicts")
     if common_keys:
         if config['exception']['level'] == ExceptionLevel.LAX or not raise_if_strict:
@@ -32,7 +32,7 @@ def already_in_dict(ctxt: Context, config: Config,
             if not no_print:
                 ctxt['log']['main_logger'].warning(f"Common keys {common_keys} between provided dicts")
         elif config['exception']['level'] == ExceptionLevel.STRICT and raise_if_strict:
-            if optional_debug_logger:
+            if optional_debug_logger and not no_print:
                 optional_debug_logger.debug('Policy STRICT so raising exception as there are common keys between'
                                             f" provided dicts (also depending on raise_if_strict={raise_if_strict})")
             if raise_if_strict:
