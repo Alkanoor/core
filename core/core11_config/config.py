@@ -51,7 +51,7 @@ def config_dependencies(*deps: Tuple[str, Type]):
                     unknown_configs.append(attributes_string)
 
             if unknown_configs:
-                from core.core11_config.policy.missing_config import missing_config_policy
+                from .policy.missing_config import missing_config_policy
                 filled_values = missing_config_policy(unknown_configs, key)
 
                 for attributes_string, value in filled_values.items():

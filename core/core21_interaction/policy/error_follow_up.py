@@ -1,6 +1,6 @@
-from core.core30_context.context_dependency_graph import context_dependencies
-from core.core31_policy.exception.strictness import raise_exception_from_string
-from core.core30_context.context import Context
+from ...core30_context.context_dependency_graph import context_dependencies
+from ...core31_policy.exception.strictness import raise_exception_from_string
+from ...core30_context.context import Context
 
 from typing import Callable, Any
 from enum import Enum

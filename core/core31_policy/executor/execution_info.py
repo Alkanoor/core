@@ -1,5 +1,5 @@
-from core.core30_context.context_dependency_graph import context_producer
-from core.core30_context.context import Context
+from ...core30_context.context_dependency_graph import context_producer
+from ...core30_context.context import Context
 
 import platform
 import os

@@ -1,6 +1,6 @@
-from core.core30_context.context_dependency_graph import context_producer, context_dependencies
-from core.core11_config.config import register_config_default, config_dependencies, Config
-from core.core30_context.context import Context
+from ...core30_context.context_dependency_graph import context_producer, context_dependencies
+from ...core11_config.config import register_config_default, config_dependencies, Config
+from ...core30_context.context import Context
 
 from typing import Callable, Any
 from logging import Logger

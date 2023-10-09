@@ -1,5 +1,5 @@
-from core.core30_context.context_dependency_graph import context_dependencies
-from core.core30_context.context import Context
+from ...core30_context.context_dependency_graph import context_dependencies
+from ...core30_context.context import Context
 
 from os import path
 
