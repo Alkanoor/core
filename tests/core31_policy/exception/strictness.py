@@ -5,8 +5,6 @@ from core.core11_config.config import update_fixed
 
 
 if __name__ == '__main__':
-    import logging
-
     ctxt = {
         'config': {
             'exception': {

@@ -2,6 +2,7 @@ from ...core31_policy.misc.dict_operations import update_dict_check_already_ther
 from .string_transform import cli_string_transforms
 from ..cli.registry import register_simple_parsing
 from ...core11_config.config import enrich_config
+from ..policy.exit import exit_policy
 
 from argparse import Namespace
 
@@ -52,3 +53,14 @@ def deal_with_parsed_data(parsed_data: Namespace):
 # initial CLI entrypoint allowing to switch config
 # (initial because if not starting with mgr, the default config is used)
 register_simple_parsing('mgr', arguments=arguments, callback_after_parsing=deal_with_parsed_data)
+
+
+def deal_with_exit(exit_data: Namespace):
+    if exit_data.force:
+        exit(0)
+    else:
+        exit_policy()
+
+register_simple_parsing('exit', arguments=[(['--force', '-y'],
+                                            {'help': 'force exit with no confirmation', 'action': 'store_true'}),],
+                        callback_after_parsing=deal_with_exit)

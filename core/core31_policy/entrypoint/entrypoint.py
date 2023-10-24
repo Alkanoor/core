@@ -1,6 +1,5 @@
 from ...core10_parsing.parsing.string_transform import cli_string_transforms
 from ...core10_parsing.policy.no_action import no_action_parsed
-from ...core11_config.config import enrich_config
 from ...core11_config.parsing.use import convert_conf_and_enrich
 from ...core11_config.policy.default_env import default_config_env
 from ...core11_config.policy.read_config import try_open_and_parse_config
@@ -9,6 +8,7 @@ from ...core10_parsing.cli.registry import command_registry
 from ...core10_parsing.cli.simple_parse import simple_parse
 from ...core30_context.context import Context, current_ctxt
 from ..misc.dict_operations import update_dict_check_already_there
+from ...core11_config.config import enrich_config
 
 from typing import Callable, Dict
 import regex
@@ -63,8 +63,9 @@ def do_config_parsing(config_dict: Dict):
     # from_c2 = parse_c2_config()
 
 
+# pass at_least_one_action = True if you just want to parse cli inputs
 @context_dependencies(('.interactor.parsing_no_action', Callable[[], None], False))
-def cli_entrypoint(ctxt: Context):
+def cli_entrypoint(ctxt: Context, at_least_one_action = False):
     # this is going to determine the final log level (as it can change depending on each parsing step
     # and on dict merge policy)
     log_value = -1
@@ -81,7 +82,6 @@ def cli_entrypoint(ctxt: Context):
 
 
     # now all is parsed, current_context['config'] is ready, give it to following layers
-    at_least_one_action = False
     # should process ARGV in the right order due to how is constructed the dict
     for key, value in parsed_cli_dict.items():
         if key != 'mgr':

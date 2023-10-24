@@ -8,3 +8,7 @@ def load_local_context(ctxt: Context):
         'local': True,
         'type': 'cli'
     })
+
+# @context_dynamic_producer(('.executor.network.ip_interfaces', List[IPNetworkInterface]))
+# def load_network_context(ctxt: Context):
+#     raise NotImplementedError

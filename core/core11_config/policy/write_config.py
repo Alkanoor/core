@@ -1,11 +1,11 @@
 from ..config import config_dependencies, Config, register_config_default, config_to_string
+from ...core22_action.policy.write import OutputFormat, write_data
 
 from typing import Dict
 import configparser
 import yaml
 import io
 
-from ...core22_action.policy.write import OutputFormat, write_data
 
 non_writable_attributes = {
     'sub_config',

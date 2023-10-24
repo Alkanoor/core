@@ -12,7 +12,7 @@ def parse_yaml(location, sub_config):
     with open(location, 'r') as f:
         config = yaml.safe_load(f)
 
-    if not sub_config:
+    if not sub_config or sub_config.lower() == 'default':
         if 'DEFAULT' in config:
             sub_config = config['DEFAULT']
             if not sub_config in config:

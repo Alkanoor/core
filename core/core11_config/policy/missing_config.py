@@ -27,9 +27,9 @@ def missing_config_policy(ctxt: Context, config: Config, missing_configs: List[s
             filled[missing_config] = \
                 ctxt['interactor']['ask'](f"Configuration for item at {missing_config}? (for {func_name})", str)
         return filled
-    elif config['missing_config'] == MissingConfigPolicy.ASK_GROUP:
+    elif config['config']['missing_config'] == MissingConfigPolicy.ASK_GROUP:
         filled = ctxt['interactor']['ask'](f"Configuration for missing items at {func_name}?", dict, missing_configs)
         return filled
     else:
-        raise_exception_from_string(f"Non allowed value {config['missing_config']} provided for {MissingConfigPolicy}")
+        raise_exception_from_string(f"Non allowed value {config['config']['missing_config']} provided for {MissingConfigPolicy}")
         return {}

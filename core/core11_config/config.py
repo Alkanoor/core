@@ -7,9 +7,10 @@ import copy
 
 Config = Dict[str, Any]
 
-_dependencies_per_function = {}
+_dependencies_per_function: Dict[str, Tuple[str, Type]] = {}
 _functions_dependant_of = {}
 _default_value_for = {}
+_type_of_attribute = {}
 _config_value_or_default: Dict[str, Tuple[bool, Type, Any]] = {}
 
 
@@ -19,8 +20,9 @@ def config_dependencies(*deps: Tuple[str, Type]):
         assert key not in _dependencies_per_function, f"Config dependencies for {key} already registered"
         _dependencies_per_function[key] = deps
 
-        for attributes_string, _ in deps:
+        for attributes_string, _type in deps:
             _functions_dependant_of.setdefault(attributes_string, set()).add(key)
+            _type_of_attribute[attributes_string] = _type
 
         @wraps(f)
         def f_with_deps_resolved(*args, **argv):
@@ -51,11 +53,12 @@ def config_dependencies(*deps: Tuple[str, Type]):
                     unknown_configs.append(attributes_string)
 
             if unknown_configs:
-                from .policy.missing_config import missing_config_policy
                 filled_values = missing_config_policy(unknown_configs, key)
 
                 for attributes_string, value in filled_values.items():
-                    _config_value_or_default[attributes_string] = (False, str, value)
+                    expected_type = _type_of_attribute[attributes_string]
+                    value = right_type_for(value, expected_type)
+                    _config_value_or_default[attributes_string] = (False, expected_type, value)
                     set_dict_against_attributes_string(config, attributes_string, value)
                     if has_been_deep_copied:  # in this case the changes should be reported within the context
                         set_dict_against_attributes_string(context['config'], attributes_string, value)
@@ -76,6 +79,7 @@ def register_config_default(attribute_string, default_value_type, default_value)
         assert _config_value_or_default[attribute_string][0] is False, \
             f"Not allowing to register twice for the same default value location {attribute_string}"
     _config_value_or_default[attribute_string] = (True, default_value_type, default_value)
+    _type_of_attribute[attribute_string] = default_value_type
     _default_value_for[attribute_string] = default_value
 
 
@@ -184,3 +188,4 @@ def subtree_at(prefix: str):
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string, set_dict_against_attributes_string
 from ..core30_context.context_dependency_graph import is_context_producer
 from ..core30_context.context import current_ctxt
+from .policy.missing_config import missing_config_policy

@@ -58,10 +58,9 @@ def help_back_to_user(ctxt: Context, command_name: str, subparser: str = None):
     ctxt['interactor']['intent_back'](to_print)
 
 
-# @init_policy
-# @context_dependancies('.persistent.valid_sqlalchemy_session')
-# def save_parsing_registry_in_database(ctxt: Dict[str, Any]):
-#     session = ctxt_get_or_create(ctxt, '.persistent.valid_sqlalchemy_session')
+# @context_dependancies('.database.sessionmaker')
+# def save_parsing_registry_in_database(ctxt: Context):
+#     with get_session() as session:
 #     for command_name in command_registry:
 #         built_from = command_registry[command_name]
         #PARSING_ARGUMENTS.GET_CREATE(...)

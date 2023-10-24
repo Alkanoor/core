@@ -1,11 +1,10 @@
 from ...core30_context.context_dependency_graph import context_producer, context_dependencies
 from ...core30_context.context import Context
+from .bad_answer import cli_bad_answer
 
 from typing import Callable, Any, Dict
 from functools import partial
 from logging import Logger
-
-from .bad_answer import cli_bad_answer
 
 
 @context_producer(('.interactor.cli_read', Callable[[], str]))
