@@ -4,6 +4,7 @@ from core.core00_core_model.mixin.instance_mixin.session_mixin import SessionMix
 from core.core30_context.policy.common_contexts import load_local_context
 from core.core31_policy.entrypoint.entrypoint import cli_entrypoint
 from core.core20_messaging.log.common_loggers import debug_logger
+from core.core30_context.context import copy_context
 
 
 if __name__ == "__main__":
@@ -26,6 +27,7 @@ if __name__ == "__main__":
     Base.metadata.create_all(engine)
 
     from contextvars import Context
+
 
     def f():
         with get_session() as session:
@@ -54,4 +56,7 @@ if __name__ == "__main__":
     f()
     logger.info("in context 2")
     ctxt = Context()
+    ctxt.run(f)
+    logger.info("in context 3")
+    ctxt = copy_context()
     ctxt.run(f)

@@ -17,9 +17,9 @@ import contextlib
 
 SupportedDB = Union[RestrictedService[SQLiteDB], RestrictedService[PostgreSQLService]]
 
+@context_producer(('.database.service', SupportedDB | Callable[[], SupportedDB]), ('.database.engine_url', str))
 @context_dependencies(('.interactor.server.tunnel_to',
                        Callable[[Service | RestrictedService], SimpleService | Callable[[], SimpleService]]))
-@context_producer(('.database.service', SupportedDB | Callable[[], SupportedDB]), ('.database.engine_url', str))
 @config_dependencies(('.database', str))
 def engine_from_config(config: Config, ctxt: Context):
     if config['database'][:6].lower() == 'sqlite':
@@ -97,10 +97,11 @@ def _construct_engine(ctxt: Context, engine_url, echo, sqlite, first_time=True, 
     return db_engine
 
 
+@context_producer(('.localcontext.database.engine', Engine | Callable[[], Engine]),
+                  ('.localcontext.database.sessionmaker',
+                   ContextVar[sessionmaker] | Callable[[...], ContextVar[sessionmaker]]))
 @context_dependencies(('.database.service', SupportedDB | Callable[[], SupportedDB]), ('.database.engine_url', str),
                       ('.log.main_logger', Logger), ('.log.debug_logger', Logger | None))
-@context_producer(('.localcontext.database.engine', Engine | Callable[[], Engine]),
-                  ('.localcontext.database.sessionmaker', ContextVar[sessionmaker] | Callable[[...], ContextVar[sessionmaker]]))
 def create_sql_engine(ctxt: Context, argv_engine={}, argv_sessionmaker={}):  # argv like expire_on_commit
     ctxt.setdefault('localcontext', {}).setdefault('database', {})
     match ctxt['database']['service']:

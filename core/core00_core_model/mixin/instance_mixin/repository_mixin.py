@@ -2,6 +2,8 @@ from ....core05_persistent_model.policy.session import commit_and_rollback_if_ex
 from .session_mixin import SessionMixin
 
 
+# mostly inspired from https://github.com/absent1706/sqlalchemy-mixins/blob/master/sqlalchemy_mixins/activerecord.py
+
 class RepositoryMixin(SessionMixin):
     __abstract__ = True
 

@@ -16,12 +16,12 @@ class NameCreationPolicy(enum.Enum):
     INDEX_SUFFIX = enum.auto()
     COMPLEX_PREFIX = enum.auto()  # what, who, when (should be in current context)
 
-register_config_default('.misc.name_creation_policy', NameCreationPolicy, NameCreationPolicy.DATE_PREFIX)
+register_config_default('.misc.name_creation_policy', NameCreationPolicy, NameCreationPolicy.INDEX_PREFIX)
 
 
 @config_dependencies(('.misc.name_creation_policy', NameCreationPolicy))
 @context_dependencies(('.interactor.who', str, False))
-def prefix_policy(ctxt: Context, config: Config, classname, index, name, force_index = False):
+def prefix_policy(ctxt: Context, config: Config, classname, index, name, force_index: bool = False):
     if config['misc']['name_creation_policy'] is NameCreationPolicy.DATE_PREFIX:
         return current_date() + '-' + f"{str(index).zfill(3)}-" if force_index else ''
     elif config['misc']['name_creation_policy'] is NameCreationPolicy.INDEX_PREFIX:
@@ -34,7 +34,7 @@ def prefix_policy(ctxt: Context, config: Config, classname, index, name, force_i
         return name
 
 @config_dependencies(('.misc.name_creation_policy', NameCreationPolicy))
-def suffix_policy(config: Config, classname, index, name, force_index = False):
+def suffix_policy(config: Config, classname, index, name, force_index: bool = False):
     if config['misc']['name_creation_policy'] is NameCreationPolicy.DATE_SUFFIX:
         return '-' + current_date() + f"-{str(index).zfill(3)}" if force_index else ''
     elif config['misc']['name_creation_policy'] is NameCreationPolicy.INDEX_SUFFIX:
@@ -45,7 +45,7 @@ def suffix_policy(config: Config, classname, index, name, force_index = False):
 
 MAX_NAME_LENGTH = 255
 
-class Named(RepositoryMixin):
+class Named:  # All Named classes must have RepositoryMixin as a base
     __abstract__ = True
 
     __named_name__ = 'name'
@@ -53,9 +53,10 @@ class Named(RepositoryMixin):
     name: Mapped[str] = mapped_column(__named_name__, String(MAX_NAME_LENGTH), primary_key=True)
 
     @classmethod
-    def force_create(cls, name: str, commit: bool = False, **attrs):
+    def force_create(cls, name: str, commit: bool = False, force_index: bool = False, **attrs):
         index = 1
-        name = f"{prefix_policy(cls, index, name)}{suffix_policy(cls, index, name)}"
-        while cls.find(name):
-            name = f"{prefix_policy(cls, index, name, True)}{suffix_policy(cls, index, name, True)}"
-        return cls().fill(**attrs).save(commit=commit)
+        modified_name = f"{prefix_policy(cls, index, name, force_index)}{suffix_policy(cls, index, name, force_index)}"
+        while cls.find(modified_name):
+            index += 1
+            modified_name = f"{prefix_policy(cls, index, name, True)}{suffix_policy(cls, index, name, True)}"
+        return cls().fill(name=modified_name, **attrs).save(commit=commit)

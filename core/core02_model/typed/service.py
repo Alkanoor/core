@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from pydantic._internal._model_construction import ModelMetaclass
-
 from .identity_proof import IdentityProofForIdentity, PrivateKey, Credentials, AuthenticatedSomething, decode_part, \
     identity_proof_secret
 from .identity import SimpleLogin, DoubleInfoLogin, TripleInfoLogin, identity_to_url
 from .endpoint import Endpoint, endpoint_from_hostname_or_ip, endpoint_to_str
 from .file import FilePhysical, EncryptedFile
 
+from pydantic._internal._model_construction import ModelMetaclass
 from typing import Literal, Union, Generic, TypeVar
 from pydantic import BaseModel
 

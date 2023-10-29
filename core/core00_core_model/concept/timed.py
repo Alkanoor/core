@@ -30,7 +30,7 @@ class CreatedAt:
     __created_at_name__ = 'created_at'
     __datetime_func__ = utcnow
 
-    created_at: Mapped[DateTime] = mapped_column(__created_at_name__,
+    created_at: Mapped[datetime] = mapped_column(__created_at_name__,
                                                  DateTime(timezone=True),
                                                  server_default=utcnow())
 
@@ -47,4 +47,5 @@ class CreatedModifiedAt:
                                                  server_default=utcnow())
     updated_at: Mapped[datetime] = mapped_column(__updated_at_name__,
                                                  DateTime(timezone=True),
+                                                 server_default=utcnow(),
                                                  onupdate=lambda: datetime.now(timezone.utc))

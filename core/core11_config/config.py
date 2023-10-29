@@ -53,6 +53,8 @@ def config_dependencies(*deps: Tuple[str, Type]):
                     unknown_configs.append(attributes_string)
 
             if unknown_configs:
+                from .policy.missing_config import missing_config_policy
+
                 filled_values = missing_config_policy(unknown_configs, key)
 
                 for attributes_string, value in filled_values.items():
@@ -188,4 +190,3 @@ def subtree_at(prefix: str):
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string, set_dict_against_attributes_string
 from ..core30_context.context_dependency_graph import is_context_producer
 from ..core30_context.context import current_ctxt
-from .policy.missing_config import missing_config_policy
