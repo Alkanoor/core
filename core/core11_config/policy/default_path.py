@@ -33,7 +33,15 @@ def default_database_paths(ctxt: Context):
         else:
             return [path.expanduser('~/.mgr/state.db')]
 
-register_config_default('.database', str, f"sqlite://{default_database_paths()[0]}")
+@context_dependencies(('.executor.os', str))
+def default_database_url(ctxt: Context):
+    if 'win' in ctxt['executor']['os']:
+        return [f"sqlite:///{path}" if path[1] == ':' and path[2] == '\\' else f"sqlite://{path}"
+                for path in default_database_paths()]
+    else:
+        return [f"sqlite://{path}" for path in default_database_paths()]
+
+register_config_default('.database', str, default_database_url()[0])
 
 
 # @config_dependencies(('.config.repository_location', str | None))

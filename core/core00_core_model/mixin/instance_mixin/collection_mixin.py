@@ -1,0 +1,36 @@
+from .create_table_when_engine_mixin import AutoTableCreationMeta
+from ....core05_persistent_model.sql_bases import add_sql_base
+from ...utils.naming import classname_for
+
+from sqlalchemy.ext.declarative import declarative_base
+
+
+_cached_classes = {}
+
+def ChangeClassNameMixinAndMeta(*SQLAlchemyObjects):
+    classname = classname_for(*SQLAlchemyObjects)
+    if _cached_classes.get(classname):
+        return _cached_classes[classname]
+
+    class ChangeClassNameMeta(AutoTableCreationMeta):
+        def __init__(cls, name, bases, dict):
+            super().__init__(f"{name}<{classname}>", bases, dict)
+
+    _ChangeClassNameMixin = declarative_base(metaclass=ChangeClassNameMeta)
+    _cached_classes[classname] = _ChangeClassNameMixin, ChangeClassNameMeta
+    add_sql_base(_cached_classes[classname][0])
+    return _cached_classes[classname]
+
+
+def ChangeClassNameMixin(*SQLAlchemyObjects):
+    return ChangeClassNameMixinAndMeta(*SQLAlchemyObjects)[0]
+
+
+def CollectionMixin(entry_type, metadata_concept):
+    # metadata_concept must be inherits from the repository mixin
+    class Mixin(ChangeClassNameMixin(entry_type, metadata_concept), metadata_concept):
+        @classmethod
+        def create(cls, metadata: metadata_concept | None = None, **metadata_attrs):
+            if not metadata:
+                metadata = metadata_concept.create(commit=True, **metadata_attrs)
+            return cls(metadata)

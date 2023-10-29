@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from ..core99_misc.fakejq.utils import check_dict_against_attributes_string
 
-from typing import List, Callable, Any, Tuple, Type, Union
+from typing import Callable, Any, Tuple, Type, Union
 from contextvars import ContextVar, Context
 from functools import wraps
 import networkx as nx
@@ -8,28 +10,39 @@ import copy
 
 
 class ThreadSafeDependencyManager:
-    _global_context_dependencies_graph = nx.Graph()
+    _global_context_dependencies_graph = nx.DiGraph()
     _global_context_nodes = {}
     _global_context_producers = {}
     _global_context_consumers = {}
 
     _incontext_dependencies_graph = ContextVar('dependencies_graph')
-    _incontext_dependencies_graph.set(_global_context_dependencies_graph)
     _incontext_nodes = ContextVar('context_nodes')
-    _incontext_nodes.set(_global_context_nodes)
     _incontext_producers = ContextVar('context_producers')
-    _incontext_producers.set(_global_context_producers)
     _incontext_consumers = ContextVar('context_consumers')
+    _incontext_dependencies_graph.set(_global_context_dependencies_graph)
+    _incontext_nodes.set(_global_context_nodes)
+    _incontext_producers.set(_global_context_producers)
     _incontext_consumers.set(_global_context_consumers)
+
+    @classmethod
+    def _set_default(cls):
+        cls._incontext_dependencies_graph.set(cls._global_context_dependencies_graph)
+        cls._incontext_nodes.set(cls._global_context_nodes)
+        cls._incontext_producers.set(cls._global_context_producers)
+        cls._incontext_consumers.set(cls._global_context_consumers)
+
 
     # _thread_local = threading.local()  # legacy with thread_local
 
     @classmethod
     def copy_dependencies_context(cls, ctxt: Context | None = None):
-        dependencies_graph = cls._incontext_dependencies_graph.get()
-        nodes = cls._incontext_nodes.get()
-        producers = cls._incontext_producers.get()
-        consumers = cls._incontext_consumers.get()
+        try:
+            dependencies_graph = cls._incontext_dependencies_graph.get()
+            nodes = cls._incontext_nodes.get()
+            producers = cls._incontext_producers.get()
+            consumers = cls._incontext_consumers.get()
+        except:
+            cls._set_default()
         ctxt = Context() if not ctxt else ctxt
 
         def _copy_context():
@@ -99,6 +112,7 @@ class ThreadSafeDependencyManager:
 
             @wraps(f)
             def f_with_deps_resolved(*args, **argv):
+                current_ctxt()  # this is a little hack to recreate the right context and dependencies
                 if not self.context_nodes[key].get('dependencies_ok'):
                     assert not self.context_nodes[key]['dependencies_doing'], \
                         f"Cycle encountered at {key} for producing {self.context_nodes[key].get('products', '?')}"
@@ -218,6 +232,41 @@ class ThreadSafeDependencyManager:
     def is_producer(self, function_key: str):
         return self.context_nodes.get(function_key, {}).get('produce_function', None)
 
+    @classmethod
+    def _invalidate_graph_index(cls, to_invalidate_set, already_done=None):
+        nodes = cls._incontext_nodes.get()
+        deps_graph = cls._incontext_dependencies_graph.get()
+
+        next_layer = set()
+        already_done = set() if not already_done else already_done
+        for producer_idx in to_invalidate_set:
+            if producer_idx not in already_done:
+                already_done.add(producer_idx)
+                nodes[deps_graph.nodes[producer_idx]['name']]['production_ok'] = False
+                for src, dst in deps_graph.out_edges(producer_idx):
+                    assert src == producer_idx, f"out_edges function failed to return appropriate content"
+                    nodes[deps_graph.nodes[dst]['name']]['dependencies_ok'] = False
+                    if 'production' in nodes[deps_graph.nodes[dst]['name']]:
+                        next_layer.add(dst)
+        if next_layer:
+            cls._invalidate_graph_index(next_layer, already_done)
+
+    @classmethod
+    def invalidate_context_dependencies(cls, *dep_names: str):
+        try:
+            cls._incontext_producers.get()
+        except:
+            cls._set_default()
+        finally:
+            source_producers = cls._incontext_producers.get()
+
+        invalidated_producer_names = set()
+        for dep_name in dep_names:
+            for attribute_string in source_producers:
+                if attribute_string[:len(dep_name) + 1] == dep_name + '.':
+                    invalidated_producer_names.add(source_producers[attribute_string])
+        cls._invalidate_graph_index(invalidated_producer_names)
+
 
 def context_dependencies(*deps: Union[Tuple[str, Type], Tuple[str, Type, bool]]):
     return ThreadSafeDependencyManager().context_dependencies(*deps)
@@ -242,6 +291,10 @@ def is_context_producer(function_key: str):  # function_key is f.__module__ + . 
 
 def copy_dependencies_context(ctxt: Context | None = None):  # warning: this Context is from contextvars
     return ThreadSafeDependencyManager.copy_dependencies_context(ctxt)
+
+
+def invalidate_context_dependencies(*dep_names: str):
+    return ThreadSafeDependencyManager.invalidate_context_dependencies(*dep_names)
 
 
 from .context import current_ctxt

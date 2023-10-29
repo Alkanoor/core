@@ -1,6 +1,6 @@
 # from ..core99_misc.fakejq.utils import check_dict_against_attributes_string
 # from .context_dependency_graph import try_resolve
-from .context_dependency_graph import copy_dependencies_context
+from .context_dependency_graph import copy_dependencies_context, invalidate_context_dependencies
 
 from contextvars import ContextVar, Context as _Context
 from typing import Dict, Any
@@ -26,6 +26,7 @@ def copy_context():  # custom copy_context to avoid writing in the _main_context
         _global_current_ctxt.set(copy.deepcopy(current_value))  # not quite the O(1) expected with copy_context but ok
     ctxt.run(_copy_context)
     copy_dependencies_context(ctxt)
+    invalidate_context_dependencies('.localcontext')
     return ctxt
 
 def current_ctxt():
@@ -34,6 +35,7 @@ def current_ctxt():
     except:
         from ..core31_policy.thread.copy import default_thread_context_copy
         _global_current_ctxt.set(default_thread_context_copy(_main_context))
+        invalidate_context_dependencies('.localcontext')
     return _global_current_ctxt.get()
 
     # legacy with thread_local

@@ -1,7 +1,6 @@
-from ...core02_model.typed.service import RestrictedService, url_to_service, Service, GenericServiceProxy,\
+from ...core02_model.typed.service import RestrictedService, url_to_service, Service, GenericServiceProxy, \
     ProxifiedService, service_to_url, SimpleService
 from ...core30_context.context_dependency_graph import context_dependencies, context_producer
-from ...core00_core_model.mixin.session_mixin import SessionMixin
 from ...core02_model.typed.file import FilePhysical, EncryptedFile
 from ...core11_config.config import config_dependencies, Config
 from ..typed.db_target import SQLiteDB, PostgreSQLService
@@ -18,8 +17,8 @@ import contextlib
 
 SupportedDB = Union[RestrictedService[SQLiteDB], RestrictedService[PostgreSQLService]]
 
-@context_dependencies(('.interactor.server.tunnel_to', Callable[[Service | RestrictedService],
-                       SimpleService | Callable[[], SimpleService]]))
+@context_dependencies(('.interactor.server.tunnel_to',
+                       Callable[[Service | RestrictedService], SimpleService | Callable[[], SimpleService]]))
 @context_producer(('.database.service', SupportedDB | Callable[[], SupportedDB]), ('.database.engine_url', str))
 @config_dependencies(('.database', str))
 def engine_from_config(config: Config, ctxt: Context):
@@ -27,20 +26,23 @@ def engine_from_config(config: Config, ctxt: Context):
         if config['database'][:19].lower() == 'sqlite+pysqlcipher:':
             fname = config['database'].split('@')[-1].split('://')[-1].split('?')[0]
             passwd = config['database'].split('://')[-1].split('@')[0].split(':')[-1]
-            service = SQLiteDB(db_file=EncryptedFile(file=FilePhysical(filename=fname), password=passwd))
+            service = RestrictedService[SQLiteDB](service=SQLiteDB(db_file=EncryptedFile(
+                file=FilePhysical(filename=fname), password=passwd)))
             engine_string = config['database'][:19].lower() + config['database'][19:]
         else:
-            service = SQLiteDB(db_file=FilePhysical(filename=config['database'][9:]))
+            service = RestrictedService[SQLiteDB](service=SQLiteDB(db_file=FilePhysical(
+                filename=config['database'][9:])))
             engine_string = config['database'][:7].lower() + config['database'][7:]
     else:  # expect pgsql
         complex_service = url_to_service(config['database'])
         match complex_service:
             case GenericServiceProxy() | ProxifiedService():  # this case requires an internal handle for proxying
+                tunnel_to = ctxt['interactor']['server']['tunnel_to']
                 # either a SimpleService or an iterable (context managed) SimpleService
-                service = ctxt['interactor']['server']['tunnel_to'](complex_service)
+                service = RestrictedService[PostgreSQLService](service=tunnel_to(complex_service))
                 engine_string = service_to_url(service)
             case _:
-                service = complex_service
+                service = RestrictedService[PostgreSQLService](service=complex_service)
                 engine_string = config['database']
     ctxt.setdefault('database', {})['service'] = service
     ctxt['database']['engine_url'] = engine_string
@@ -97,10 +99,17 @@ def _construct_engine(ctxt: Context, engine_url, echo, sqlite, first_time=True, 
 
 @context_dependencies(('.database.service', SupportedDB | Callable[[], SupportedDB]), ('.database.engine_url', str),
                       ('.log.main_logger', Logger), ('.log.debug_logger', Logger | None))
-@context_producer(('.database.engine', Engine), ('.database.sessionmaker', sessionmaker))
+@context_producer(('.localcontext.database.engine', Engine | Callable[[], Engine]),
+                  ('.localcontext.database.sessionmaker', ContextVar[sessionmaker] | Callable[[...], ContextVar[sessionmaker]]))
 def create_sql_engine(ctxt: Context, argv_engine={}, argv_sessionmaker={}):  # argv like expire_on_commit
+    ctxt.setdefault('localcontext', {}).setdefault('database', {})
     match ctxt['database']['service']:
-        case Callable():
+        case RestrictedService():
+            db_engine = _construct_engine(ctxt['database']['engine_url'], ctxt['log']['debug_logger'] is not None,
+                                          isinstance(ctxt['database']['service'], SQLiteDB), **argv_engine)
+            ctxt['localcontext']['database']['sessionmaker'] = ContextVar('_sessionmaker', default=
+                                                                          sessionmaker(db_engine, **argv_sessionmaker))
+        case _:  # Callable case but cannot match against callable
             @contextlib.contextmanager
             def create_engine_in_context():
                 with ctxt['database']['service']() as _:  # in case the service requires resource management
@@ -108,50 +117,78 @@ def create_sql_engine(ctxt: Context, argv_engine={}, argv_sessionmaker={}):  # a
                                             ctxt['log']['debug_logger'] is not None,
                                             isinstance(ctxt['database']['service'], SQLiteDB),
                                             **argv_engine)
+
             db_engine = create_engine_in_context
 
             @contextlib.contextmanager
             def create_session_maker() -> ContextVar[sessionmaker]:
                 with create_engine_in_context() as db_engine:
-                    yield ContextVar('_session', default=sessionmaker(db_engine, **argv_sessionmaker))
-            ctxt['database']['sessionmaker'] = create_session_maker
-        case _:
-            db_engine = _construct_engine(ctxt['database']['engine_url'], ctxt['log']['debug_logger'] is not None,
-                                          isinstance(ctxt['database']['service'], SQLiteDB), **argv_engine)
-            ctxt['database']['sessionmaker'] = ContextVar('_session',
-                                                          default=sessionmaker(db_engine, **argv_sessionmaker))
+                    yield ContextVar('_sessionmaker', default=sessionmaker(db_engine, **argv_sessionmaker))
 
-    ctxt['database']['engine'] = db_engine
+            ctxt['localcontext']['database']['sessionmaker'] = create_session_maker
+    ctxt['localcontext']['database']['engine'] = db_engine
+    return db_engine
 
 
-def _get_session(_sessionmaker: ContextVar, debug_logger: Logger = None):
+@contextlib.contextmanager
+@context_dependencies(('.localcontext.database.engine', Engine | Callable[[], Engine]))
+def get_engine(ctxt: Context) -> Iterator[Engine]:
+    if isinstance(ctxt['localcontext']['database']['engine'], Engine):
+        yield ctxt['localcontext']['database']['engine']
+    else:  # assume the engine creator is context-managed
+        with ctxt['localcontext']['database']['engine']() as engine_creator:
+            yield engine_creator
+
+
+# generators not yet handled by the core so cheating here
+# @context_producer(('localcontext.database.current_session', ContextVar[Session]))
+def _get_session(ctxt: Context, _sessionmaker: ContextVar, debug_logger: Logger = None):
     try:
-        session = _sessionmaker.get()
-        SessionMixin.set_session(session)
+        if 'localcontext' not in ctxt or 'database' not in ctxt['localcontext'] or\
+                'current_session' not in ctxt['localcontext']['database'] \
+                or not ctxt['localcontext']['database']['current_session'].get():
+            session = _sessionmaker.get()()
+            ctxt['localcontext']['database']['current_session'] = ContextVar('_session', default=session)
+        else:
+            debug_logger.info("already here")
+            debug_logger.info( ctxt['localcontext']['database']['current_session'])
+            session = ctxt['localcontext']['database']['current_session'].get()
         yield session
         session.commit()
         if debug_logger:
             debug_logger.debug("Session committed: {}".format(id(session)))
-    except Exception:
+    except:
         session.rollback()
         if debug_logger:
             debug_logger.debug("Session rollback-ed: {}".format(id(session)))
         raise
     finally:
-        SessionMixin.set_session(None)
+        # ctxt['database']['current_session'].set(None)  # session handles partial close with default close_resets_only
         if debug_logger:
             debug_logger.debug("Session closed: {}".format(id(session)))
-        session.close()
+        session.close()  # session handles partial close with default close_resets_only = True, so we can reuse it
+
+
+@context_dependencies(('.localcontext.database.current_session', ContextVar[Session], False))
+def current_session(ctxt: Context):
+    if 'localcontext' not in ctxt or 'database' not in ctxt['localcontext'] or \
+            'current_session' not in ctxt['localcontext']['database']:
+        raise Exception('No current session in context, please execute current block in a "with get_session()" block')
+    elif not ctxt['localcontext']['database']['current_session'].get():
+        raise Exception('Session currently None, please execute in a context where it\'s not')
+    return ctxt['localcontext']['database']['current_session'].get()
+
 
 @contextlib.contextmanager
-@context_dependencies(('.database.sessionmaker', ContextVar[sessionmaker] | Callable[[...], ContextVar[sessionmaker]]),
+@context_dependencies(('.localcontext.database.sessionmaker',
+                       ContextVar[sessionmaker] | Callable[[...], ContextVar[sessionmaker]]),
                       ('.log.debug_logger', Logger | None))
 def get_session(ctxt: Context) -> Iterator[Session]:
-    if isinstance(ctxt['database']['sessionmaker'], ContextVar):
-        yield from _get_session(ctxt['database']['sessionmaker'], ctxt['log']['debug_logger'])
+    if isinstance(ctxt['localcontext']['database']['sessionmaker'], ContextVar):
+        yield from _get_session(ctxt, ctxt['localcontext']['database']['sessionmaker'], ctxt['log']['debug_logger'])
     else:  # assume the sessionmaker is context-managed
-        with ctxt['database']['sessionmaker']() as _sessionmaker:
-            yield from _get_session(_sessionmaker, ctxt['log']['debug_logger'])
+        with ctxt['localcontext']['database']['sessionmaker']() as _sessionmaker:
+            yield from _get_session(ctxt, _sessionmaker, ctxt['log']['debug_logger'])
 
 
 def commit_and_rollback_if_exception(session):
@@ -160,7 +197,3 @@ def commit_and_rollback_if_exception(session):
     except Exception as e:
         session.rollback()
         raise e
-
-
-if __name__ == "__main__":
-    create_session()
