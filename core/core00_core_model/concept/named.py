@@ -53,7 +53,7 @@ class Named:  # All Named classes must have RepositoryMixin as a base
     name: Mapped[str] = mapped_column(__named_name__, String(MAX_NAME_LENGTH), primary_key=True)
 
     @classmethod
-    def force_create(cls, name: str, commit: bool = False, force_index: bool = False, **attrs):
+    def force_create(cls, name: str, commit: bool = True, force_index: bool = False, **attrs):
         index = 1
         modified_name = f"{prefix_policy(cls, index, name, force_index)}{suffix_policy(cls, index, name, force_index)}"
         while cls.find(modified_name):

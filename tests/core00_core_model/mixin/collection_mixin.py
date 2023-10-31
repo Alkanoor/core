@@ -7,6 +7,7 @@ if __name__ == "__main__":
     cli_entrypoint(True)
 
     from core.core00_core_model.mixin.meta_mixin.create_table_when_engine_mixin import AutoTableCreationMixin
+    from core.core00_core_model.mixin.instance_mixin.collection_mixin import CollectionMixin
     from core.core00_core_model.mixin.instance_mixin.representation_mixin import ReprMixin
     from core.core00_core_model.mixin.instance_mixin.repository_mixin import RepositoryMixin
     from core.core00_core_model.mixin.instance_mixin.session_mixin import SessionMixin
@@ -23,15 +24,25 @@ if __name__ == "__main__":
 
     named_and_createdmodified_at = merge_concepts(Named, CreatedModifiedAt)
 
-    class MyTable(AutoTableCreationMixin, ReprMixin, RepositoryMixin, named_and_createdmodified_at):
-        __tablename__ = 'autocreate'
-        notid: Mapped[int] = mapped_column(Integer, nullable=True)
+    class BaseMetadata(AutoTableCreationMixin, ReprMixin, RepositoryMixin, named_and_createdmodified_at):
+        __tablename__ = 'named_dated'
+
+    class BasicListItem(AutoTableCreationMixin, ReprMixin, RepositoryMixin):
+        __tablename__ = 'item'
+        id: Mapped[int] = mapped_column(Integer, primary_key=True)
         value: Mapped[str] = mapped_column(_String, unique=True)
 
-    class MyRef(AutoTableCreationMixin, ReprMixin, RepositoryMixin, named_and_createdmodified_at):
-        __tablename__ = 'autoref'
-        fk: Mapped[int] = mapped_column(Integer, ForeignKey(MyTable.name), nullable=False)
-        thetable: Mapped[MyTable] = relationship(MyTable, foreign_keys=[fk])
+    with get_session() as session:
+        metadata1 = BaseMetadata.get_create(name='liste1')
+        item1 = BasicListItem.get_create(value='item1')
+        item2 = BasicListItem.get_create(value='item2')
+        item3 = BasicListItem.get_create(value='item3')
+        item4 = BasicListItem.get_create(value='item4')
+
+    class BasicList(CollectionMixin(BaseMetadata, BasicListItem), ReprMixin):
+        pass
+
+    BasicList(metadata=metadata1, item=item1)
 
     import random
     import string

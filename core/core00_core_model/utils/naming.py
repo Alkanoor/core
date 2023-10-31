@@ -1,7 +1,7 @@
 
 
 def classname_for(*class_dependencies):
-    return ','.join(sorted(map(lambda x: x.__class__.__name__, class_dependencies)))
+    return ','.join(sorted(map(lambda x: x.__name__, class_dependencies)))
 
 def tablename_for(*sqlalchemy_dependencies):
     return '|'.join(sorted(map(lambda x: x.__tablename__, sqlalchemy_dependencies)))
