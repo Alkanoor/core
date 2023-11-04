@@ -13,8 +13,8 @@ def ChangeClassNameMixinAndMeta(*SQLAlchemyObjects):
         return _cached_classes[classname]
 
     class ChangeClassNameMeta(AutoTableCreationMeta):
-        def __init__(cls, name, bases, dict):
-            super().__init__(f"{name}<{classname}>", bases, dict)
+        def __new__(mcls, name, bases, dict):
+            return AutoTableCreationMeta.__new__(mcls, f"{name}<{classname}>", bases, dict)
 
     _ChangeClassNameMixin = declarative_base(metaclass=ChangeClassNameMeta)
     _cached_classes[classname] = _ChangeClassNameMixin, ChangeClassNameMeta

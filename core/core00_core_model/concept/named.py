@@ -1,6 +1,5 @@
 from ...core11_config.config import register_config_default, config_dependencies, Config
 from ...core30_context.context_dependency_graph import context_dependencies
-from ..mixin.instance_mixin.repository_mixin import RepositoryMixin
 from ...core31_policy.misc.time import current_date
 from ...core30_context.context import Context
 

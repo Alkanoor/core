@@ -42,21 +42,5 @@ if __name__ == "__main__":
     class BasicList(CollectionMixin(BaseMetadata, BasicListItem), ReprMixin):
         pass
 
-    BasicList(metadata=metadata1, item=item1)
-
-    import random
-    import string
-
-    with get_session() as session:
-        logger.info(SessionMixin.session)
-        obj = MyTable.get_create(value='bcd', name='??')
-        obj2 = MyTable.force_create(value='bcde'+''.join([random.choice(string.ascii_letters) for _ in range(5)]),
-                                    name='ab', force_index=True)
-        logger.info(obj)
-        logger.info(obj.self_to_json())
-        logger.info(obj.class_to_json())
-        logger.info(obj2)
-        obj3 = MyRef.force_create(thetable=obj, name='X')
-        logger.info(obj3)
-        logger.info(obj3.self_to_json())
-        logger.info(obj3.class_to_json())
+    session.add(BasicList(metadata_obj=metadata1, entry=item1))
+    session.commit()

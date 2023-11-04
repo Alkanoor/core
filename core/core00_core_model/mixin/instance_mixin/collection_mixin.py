@@ -1,15 +1,10 @@
-from sqlalchemy import Integer, ForeignKey
+from sqlalchemy import Integer, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
 
 from ..meta_mixin.name_from_dependencies_mixin import ChangeClassNameMixin
-from ....core05_persistent_model.sql_bases import add_sql_base
-from ...utils.naming import classname_for
-
-from sqlalchemy.ext.declarative import declarative_base
 
 
-
-def CollectionMixin(metadata_type, entry_type):
+def CollectionMixin(metadata_type, entry_type, is_set: bool = False):
     assert getattr(metadata_type, '__tablename__', None),\
         f"Metadata type {metadata_type} does not have mandatory tablename, it must by some SQL Alchemy object" \
         f" to create relation on"
@@ -18,22 +13,21 @@ def CollectionMixin(metadata_type, entry_type):
         f" to create relation on"
     assert len(metadata_type.primary_keys) == 1, f"Composite foreign key not supported by CollectionMixin (yet)"
     assert len(entry_type.primary_keys) == 1, f"Composite foreign key not supported by CollectionMixin (yet)"
-    # metadata_concept must inherit from the repository mixin
-    print(metadata_type)
-    print(metadata_type.primary_keys_full[0])
-    print(entry_type.primary_keys_full[0])
-    class Mixin(ChangeClassNameMixin(metadata_type, entry_type)):
-        __abstract__ = True
 
+    # metadata_concept must inherit from the repository mixin
+    class Mixin(ChangeClassNameMixin(metadata_type, entry_type)):
         __tablename__ = f"<{metadata_type.__tablename__}>[{entry_type.__tablename__}]"
 
         __named_metadata__ = f"metadata<{metadata_type.__tablename__}>"
         __named_entry__ = f"entry<{entry_type.__tablename__}>"
 
-        metadata_id: Mapped[int] = mapped_column(__named_metadata__, Integer,
-                                                 ForeignKey(metadata_type.primary_keys_full[0]), primary_key=True)
+        if not is_set:
+            id: Mapped[str] = mapped_column('id', Integer, primary_key=True)
+
+        metadata_id: Mapped[str] = mapped_column(__named_metadata__, String,
+                                                 ForeignKey(metadata_type.primary_keys_full[0]), primary_key=is_set)
         entry_id: Mapped[int] = mapped_column(__named_entry__, Integer,
-                                              ForeignKey(entry_type.primary_keys_full[0]), primary_key=True)
+                                              ForeignKey(entry_type.primary_keys_full[0]), primary_key=is_set)
 
         @declared_attr
         def metadata_obj(cls) -> Mapped[metadata_type]:
@@ -45,8 +39,6 @@ def CollectionMixin(metadata_type, entry_type):
 
         @classmethod
         def __getattr__(cls, attr_name):
-            print("GETTING ATTR")
-            print(attr_name)
             if attr_name == '__init__':
                 raise AttributeError
             return getattr(cls, attr_name)
