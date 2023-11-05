@@ -24,3 +24,6 @@ def ChangeClassNameMixinAndMeta(*SQLAlchemyObjects):
 
 def ChangeClassNameMixin(*SQLAlchemyObjects):
     return ChangeClassNameMixinAndMeta(*SQLAlchemyObjects)[0]
+
+def ChangeClassNameMeta(*SQLAlchemyObjects):
+    return ChangeClassNameMixinAndMeta(*SQLAlchemyObjects)[1]

@@ -45,12 +45,18 @@ def consume_arguments(rules_dict, permit_multiple_types: bool = False, is_method
             cannot_be_none.add(item[0])
         if item[1] == CallingContractArguments.ExactlyX:
             assert item[2] > 1, 'CallingContractArguments.ExactlyX cannot be compared to 1 or 0, already in One(orNone)'
-        if item[1] not in per_type:
+        if item[0] not in per_type:
             per_type[item[0]] = [(key, item)]
         else:
             assert permit_multiple_types, f"Multiple types {item[0]} not permitted in consume_arguments" \
                                           f" (permit_multiple_types = False)"
             per_type[item[0]].append((key, item))
+
+    print("ppppppppppp")
+    for k in per_type:
+        print(k)
+        print(per_type[k])
+
     all_types = list(per_type.keys())
     def decorator(f):
         @wraps(f)
@@ -68,11 +74,10 @@ def consume_arguments(rules_dict, permit_multiple_types: bool = False, is_method
                     per_type_when_called.setdefault(type(arg), []).append(arg)
                 else:
                     final_argv[k] = argv[k]
-            print(per_type_when_called)
             for _type, value_list in per_type_when_called.items():
                 if len(per_type[_type]) == 1:  # case where there can be many of the same type, as unique
                     name, type_and_constraint = per_type[_type][0]
-                    print(type_and_constraint)
+                    print(name, type_and_constraint)
                     out = _check_and_format(type_and_constraint[1:], value_list, _type)
                     final_argv[name] = out
                 else:

@@ -7,7 +7,7 @@ def column_to_type(column: ColumnProperty):
     if isinstance(column.class_attribute.type, String):
         return str, String
     elif isinstance(column.class_attribute.type, Integer):
-        return int, String
+        return int, Integer
     elif isinstance(column.class_attribute.type, DateTime):
-        return int, datetime
+        return datetime, DateTime
     raise NotImplementedError

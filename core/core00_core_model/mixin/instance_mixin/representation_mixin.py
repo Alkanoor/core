@@ -60,6 +60,8 @@ class ReprMixin(IntrospectionMixin):
         attrs = self.__repr_attrs__ if self.__repr_attrs__ else self.columns + self.relations
         values = []
         for key in attrs:
+            if key in self.primary_keys:
+                continue
             value = getattr(self, key)
             wrap_in_quote = isinstance(value, str)
             if wrap_in_quote:

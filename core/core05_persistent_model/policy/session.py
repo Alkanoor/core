@@ -102,7 +102,7 @@ def _construct_engine(ctxt: Context, engine_url, echo, sqlite, first_time=True, 
                    ContextVar[sessionmaker] | Callable[[...], ContextVar[sessionmaker]]))
 @context_dependencies(('.database.service', SupportedDB | Callable[[], SupportedDB]), ('.database.engine_url', str),
                       ('.log.main_logger', Logger), ('.log.debug_logger', Logger | None))
-def create_sql_engine(ctxt: Context, argv_engine={}, argv_sessionmaker={}):  # argv like expire_on_commit
+def create_sql_engine(ctxt: Context, argv_engine={}, argv_sessionmaker={'expire_on_commit': False}):
     ctxt.setdefault('localcontext', {}).setdefault('database', {})
     match ctxt['database']['service']:
         case RestrictedService():
@@ -151,8 +151,6 @@ def _get_session(ctxt: Context, _sessionmaker: ContextVar, debug_logger: Logger 
             session = _sessionmaker.get()()
             ctxt['localcontext']['database']['current_session'] = ContextVar('_session', default=session)
         else:
-            debug_logger.info("already here")
-            debug_logger.info( ctxt['localcontext']['database']['current_session'])
             session = ctxt['localcontext']['database']['current_session'].get()
         yield session
         session.commit()

@@ -10,7 +10,9 @@ from sqlalchemy import Integer, ForeignKey
 from typing import List
 
 
+# it the collection is a set (is_set = True), it implies some unicity constraints on rows
 def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = False):
+
     assert getattr(metadata_type, '__tablename__', None), \
         f"Metadata type {metadata_type} does not have mandatory tablename, it must by some SQL Alchemy object" \
         f" to create relation on"
@@ -23,6 +25,8 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
     metadata_primary_key_name = metadata_type.primary_keys_full[0].key
     mapped_metadata_type, sqlalchemy_metdata_type = column_to_type(metadata_type.primary_keys_full[0])
     mapped_entry_type, sqlalchemy_entry_type = column_to_type(entry_type.primary_keys_full[0])
+
+    print("iciii ", entry_type, entry_type.__tablename__, entry_type.primary_keys_full)
 
     # metadata_concept must inherit from the repository mixin
     class EntryMixin(ChangeClassNameMixin(metadata_type, entry_type), RepositoryMixin):
@@ -72,15 +76,18 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
         def create(cls, commit=True, **argv):
             return cls(commit=commit, **argv)
 
+        def entries_updated(self, commit=True):
+            self.__metadata__.query \
+                .filter_by(**{metadata_primary_key_name: getattr(self.metadata, metadata_primary_key_name)}) \
+                .update({})
+            if commit:
+                commit_and_rollback_if_exception(self.session)
+
         def update(self, commit=True, **argv):
             if argv:
                 self.metadata.fill(**argv).save(commit=commit)
             else:
-                self.__metadata__.query \
-                    .filter_by(**{metadata_primary_key_name: getattr(self.metadata, metadata_primary_key_name)}) \
-                    .update({})
-                if commit:
-                    commit_and_rollback_if_exception(self.session)
+                self.entries_updated(commit)
 
         def delete(self, commit=True, with_entries=False):
             if with_entries:
@@ -93,7 +100,6 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
                 self.entries_initialized = True
                 self._entries = self.session \
                     .query(self.__collection_entry__) \
-                    .join(self.__collection_entry__.entry) \
                     .options(joinedload(self.__collection_entry__.entry)) \
                     .filter(self.__collection_entry__.metadata_obj == self.metadata) \
                     .all()
