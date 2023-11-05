@@ -69,4 +69,4 @@ class ReprMixin(IntrospectionMixin):
 
     def __repr__(self):
         repr_attrs = self._repr_attrs_str
-        return f"[{self.__class__.__tablename__} #{self._id_str}{' '+repr_attrs if repr_attrs else ''}]"
+        return '{'+f"{self.__class__.__tablename__} #{self._id_str}{' '+repr_attrs if repr_attrs else ''}"+'}'

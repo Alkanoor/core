@@ -51,14 +51,22 @@ class RepositoryMixin(SessionMixin):
         return cls.query.filter_by(**attrs).one_or_none()
 
     @classmethod
-    def get_create(cls, **attrs):
+    def get_create(cls, commit=True, **attrs):
         existing = cls.get_for(**attrs)
-        return existing if existing else cls.create(**attrs)
+        return existing if existing else cls.create(commit=commit, **attrs)
+
+    @classmethod
+    def filter_by(cls, **attrs):
+        return cls.query.filter_by(**attrs)
+
+    @classmethod
+    def filter(cls, condition):
+        return cls.query.filter(condition)
 
     @classmethod
     def all_for(cls, **attrs):
-        return cls.query.filter_by(**attrs).all()
+        return cls.filter_by(**attrs).all()
 
     @classmethod
     def all_for_condition(cls, condition):
-        return cls.query.filter(condition).all()
+        return cls.filter(condition).all()

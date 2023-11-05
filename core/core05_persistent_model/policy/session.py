@@ -86,13 +86,13 @@ def _construct_engine(ctxt: Context, engine_url, echo, sqlite, first_time=True, 
     from sqlalchemy import event
     event.listen(db_engine, 'connect', _fk_pragma_on_connect)
 
-    from ..sql_bases import _sql_bases
-    # create all currently existing metadata for declared bases
-    try:
-        (*map(lambda x: x.metadata.create_all(db_engine), _sql_bases[::-1]),)
-    except:  # if exception, may be that declarative bases contain unresolved references to other tables
-        combined = merge_declarative_bases(_sql_bases)
-        combined.create_all(db_engine)
+    # from ..sql_bases import _sql_bases
+    # # create all currently existing metadata for declared bases
+    # try:
+    #     (*map(lambda x: x.metadata.create_all(db_engine), _sql_bases[::-1]),)
+    # except:  # if exception, may be that declarative bases contain unresolved references to other tables
+    #     combined = merge_declarative_bases(_sql_bases)
+    #     combined.create_all(db_engine)
 
     return db_engine
 
@@ -107,16 +107,16 @@ def create_sql_engine(ctxt: Context, argv_engine={}, argv_sessionmaker={}):  # a
     match ctxt['database']['service']:
         case RestrictedService():
             db_engine = _construct_engine(ctxt['database']['engine_url'], ctxt['log']['debug_logger'] is not None,
-                                          isinstance(ctxt['database']['service'], SQLiteDB), **argv_engine)
+                                          isinstance(ctxt['database']['service'].service, SQLiteDB), **argv_engine)
             ctxt['localcontext']['database']['sessionmaker'] = ContextVar('_sessionmaker', default=
                                                                           sessionmaker(db_engine, **argv_sessionmaker))
         case _:  # Callable case but cannot match against callable
             @contextlib.contextmanager
             def create_engine_in_context():
-                with ctxt['database']['service']() as _:  # in case the service requires resource management
+                with ctxt['database']['service']() as svc:  # in case the service requires resource management
                     yield _construct_engine(ctxt['database']['engine_url'],
                                             ctxt['log']['debug_logger'] is not None,
-                                            isinstance(ctxt['database']['service'], SQLiteDB),
+                                            isinstance(svc, SQLiteDB),
                                             **argv_engine)
 
             db_engine = create_engine_in_context

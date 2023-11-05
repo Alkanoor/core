@@ -49,7 +49,7 @@ class Named:  # All Named classes must have RepositoryMixin as a base
 
     __named_name__ = 'name'
 
-    name: Mapped[str] = mapped_column(__named_name__, String(MAX_NAME_LENGTH), primary_key=True)
+    name: Mapped[str] = mapped_column(__named_name__, String(MAX_NAME_LENGTH), primary_key=True, nullable=False)
 
     @classmethod
     def force_create(cls, name: str, commit: bool = True, force_index: bool = False, **attrs):
