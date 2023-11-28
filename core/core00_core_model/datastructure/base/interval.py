@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ...mixin.base_mixin import BaseMixins
+from ...mixin.base_mixin import BaseMixinsNoJoin
 
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.hybrid import hybrid_method
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped
 
 # mostly extracted from https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
 
-class Interval(*BaseMixins):
+class Interval(*BaseMixinsNoJoin):
     __tablename__ = 'interval'
 
     id: Mapped[int] = mapped_column(primary_key=True)

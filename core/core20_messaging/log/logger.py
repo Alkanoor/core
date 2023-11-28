@@ -7,10 +7,11 @@ import logging
 @config_dependencies(('.log.log_level', LogLevel))
 def get_logger(config: Config, name: str):
     logger = logging.getLogger(name)
+    logger.setLevel(config['log']['log_level'].value)
 
     handler = logging.StreamHandler()
     handler.setLevel(config['log']['log_level'].value)
-    formatter = logging.Formatter('[%(asctime)s][%(levelname)s] %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
+    formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
     handler.setFormatter(formatter)
 
     for hdlr in logger.handlers[:]:

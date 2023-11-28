@@ -10,6 +10,9 @@ class RepositoryMixin(SessionMixin):
     def fill(self, **attrs):
         for key in attrs:
             setattr(self, key, attrs[key])
+        # trigger an object reconstruction, since we are not in the case of the SQLAlchemy mapper that triggers it
+        if hasattr(self, 'init_on_load'):
+            self.init_on_load()
         return self
 
     @classmethod
@@ -54,6 +57,20 @@ class RepositoryMixin(SessionMixin):
     def get_create(cls, commit=True, **attrs):
         existing = cls.get_for(**attrs)
         return existing if existing else cls.create(commit=commit, **attrs)
+
+    @classmethod
+    def get_from_instance(cls, instance, commit=True):  # instance must be of cls type (must be introspectable)
+        attrs = {x: getattr(instance, x, None) for x in instance.columns + instance.relations}
+        attrs = {x: attrs[x] for x in attrs if attrs[x]}
+        existing = cls.get_for(**attrs)
+        return existing if existing else cls.create(commit=commit, **attrs)
+
+    @classmethod
+    def get_from_construct(cls, *args, **argv):
+        # construct the object attributes in case of complex object
+        instance = cls(commit=argv.get('commit', True), *args, **argv)
+        # then retrieve it /create it from database
+        return cls.get_from_instance(instance, commit=argv.get('commit', True))
 
     @classmethod
     def filter_by(cls, **attrs):

@@ -20,10 +20,11 @@ if __name__ == '__main__':
 
     class BasicListAlias(CollectionMixin('BASICLISTONALIAS', BaseMetadata, ALIAS_ITEM)):
         def add(self, entry, commit=False):
-            self.session.add(self.__collection_entry__.create(metadata_obj=self.metadata, entry=entry, commit=False))
+            coll_entry = self.__collection_entry__.create(metadata_obj=self.metadata, entry=entry, commit=False)
+            self.session.add(coll_entry)
             if commit:
                 commit_and_rollback_if_exception(self.session)
-            self._entries.append(entry)
+            self._entries.append(coll_entry)
 
     ALIAS_LIST_ALIAS = ALIAS(BasicListAlias, 'alias_of_list_of_alias')
 
@@ -52,12 +53,13 @@ if __name__ == '__main__':
         logger.info(a1)
 
         l1 = ALIAS_LIST(name='mylist')
-        item1 = BasicListItem.get_create(value='item1')
+        item1 = BasicListItem.get_create(value='itemX')
         l1.add(item1)
+        l1.entries_updated()
         logger.info(l1)
 
-        l2 = ALIAS_LIST_ALIAS.get_create(aliased=BaseMetadata.get_create(name='listalias'))
-        aitem = ALIAS_ITEM.get_create(aliased=item1)
+        l2 = ALIAS_LIST_ALIAS.get_from_construct(name='listalias')
+        aitem = ALIAS_ITEM.get_from_construct(item1)
         l2.add(aitem)
         l2.entries_updated()
         session.commit()

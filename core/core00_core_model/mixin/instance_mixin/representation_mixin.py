@@ -41,7 +41,7 @@ class ReprMixin(IntrospectionMixin):
                     k: '[...]' if cur_nesting >= max_nesting >= 0 else
                     (getattr(self, k).self_to_json(max_nesting, cur_nesting + 1)
                      if hasattr(getattr(self, k), 'self_to_json')
-                     else getattr(self, k)) for k in self.relations
+                     else getattr(self, k)) for k in self.relations if k[:2] != '__'
                 }
             }
         }
@@ -57,7 +57,8 @@ class ReprMixin(IntrospectionMixin):
 
     @property
     def _repr_attrs_str(self):
-        attrs = self.__repr_attrs__ if self.__repr_attrs__ else self.columns + self.relations
+        attrs = self.__repr_attrs__ if self.__repr_attrs__ else self.columns + \
+                                                                [k for k in self.relations if k[:2] != '__']
         values = []
         for key in attrs:
             if key in self.primary_keys:

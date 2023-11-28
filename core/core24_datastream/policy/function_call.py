@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import List
+from typing import List, Iterable
 import enum
 
 
@@ -9,7 +9,8 @@ class CallingContractArguments(enum.Enum):
     OneOrMore = enum.auto()  # this case lead to a unique value or a list
     ExactlyX = enum.auto()   # this case (0 and 1 forbidden as already represented)
     MoreThanX = enum.auto()  # and this case, lead to a list of values
-    LessThanX = enum.auto()  # this cas can lead to None, a unique or a list
+    LessThanX = enum.auto()  # this case can lead to None, a unique or a list
+    List = enum.auto()       # this case is to create a smart list: either a list of X,
 
 
 def _check_and_format(calling_contract_arguments: CallingContractArguments, values_list: List, type_error: type):

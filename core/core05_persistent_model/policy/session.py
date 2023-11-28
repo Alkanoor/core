@@ -1,5 +1,6 @@
 from ...core02_model.typed.service import RestrictedService, url_to_service, Service, GenericServiceProxy, \
     ProxifiedService, service_to_url, SimpleService
+from ...core20_messaging.log.logger import get_logger
 from ...core30_context.context_dependency_graph import context_dependencies, context_producer
 from ...core02_model.typed.file import FilePhysical, EncryptedFile
 from ...core11_config.config import config_dependencies, Config
@@ -60,10 +61,17 @@ def merge_declarative_bases(sql_bases):
     return combined_meta_data
 
 
-@context_dependencies(('.log.main_logger', Logger))
+@context_dependencies(('.log.main_logger', Logger), ('.log.debug_logger', Logger | None))
 def _construct_engine(ctxt: Context, engine_url, echo, sqlite, first_time=True, **argv):
+    if echo:
+        get_logger('sqlalchemy.engine')
+        if ctxt['log']['debug_logger']:
+            get_logger('sqlalchemy.pool')
+            get_logger('sqlalchemy.dialects')
+            get_logger('sqlalchemy.orm')
     try:
-        db_engine = create_engine(engine_url, echo=echo, **argv)
+        # db_engine = create_engine(engine_url, echo=echo, **argv)
+        db_engine = create_engine(engine_url, **argv)  # cleaner: no echo because on stdout, want in on loggging
     except Exception as e:
         if first_time:
             if sqlite:
