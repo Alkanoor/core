@@ -59,7 +59,7 @@ def consume_arguments(rules_dict, permit_multiple_types: bool = False, is_method
         def sub(*args, **argv):
             per_type_when_called = {}
             final_argv = {}
-            for arg in args[1:]:
+            for arg in args[1:]:  # argument 1 is either instance or class (no static method allowed yet to use this)
                 if type(arg) not in per_type:
                     raise Exception(f"Not expecting positional argument with type {type(arg)} (possible: {all_types})")
                 else:

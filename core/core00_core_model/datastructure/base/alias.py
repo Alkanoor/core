@@ -64,23 +64,28 @@ def ALIAS(alias_target_class, alias_name: str, keep_full_name: bool = False):
         }
 
         @classmethod
-        def custom_join(cls, max_depth: int, current_depth: int,
+        def custom_join(cls, parent, max_depth: int, current_depth: int,
                         join_path: List[type] | None = None):
             if current_depth < 0:  # no eager loading
                 return lambda x: x, []
             if current_depth >= max_depth > 0:  # max depth reached
                 return lambda x: x, []
 
+            cls_or_parent = cls if not parent else parent
+            metadata_alias = aliased(cls_or_parent.__metadata_target__)
             additional_to_query = []
             child_resolved = None
-            if not default_check_joinable() or hasattr(cls.__target__, 'join'):
-                child_resolved, more_to_query = cls.__target__.join(max_depth, current_depth + 1, join_path)
+            if not default_check_joinable() or hasattr(cls_or_parent.__target__, 'join'):
+                child_resolved, more_to_query = cls_or_parent.__target__.join(metadata_alias,
+                                                                              max_depth, current_depth + 1,
+                                                                              join_path)
                 additional_to_query.extend(more_to_query)
 
             def resolve_query(initial_query):
-                metadata = aliased(cls.__metadata_target__)
-                resolved = initial_query.outerjoin(metadata)
-                resolved = resolved.options(joinedload(*join_path, cls.aliased))
+                resolved = initial_query.outerjoin(metadata_alias)
+                print(resolved)
+                print(join_path[0].expression, cls_or_parent.aliased, parent)
+                resolved = resolved.options(joinedload(*join_path, cls_or_parent.aliased))
                 if child_resolved:
                     resolved = child_resolved(resolved)
                 # resolved = resolved.group_by(getattr(metadata, metadata.primary_keys[0]))

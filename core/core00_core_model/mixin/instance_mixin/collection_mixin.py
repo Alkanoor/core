@@ -71,28 +71,29 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
         }
 
         @classmethod
-        def custom_join(cls, max_depth: int, current_depth: int, join_path: List[type] | None = None):
+        def custom_join(cls, parent, max_depth: int, current_depth: int, join_path: List[type] | None = None):
             if current_depth < 0:  # no eager loading
                 return lambda x: x, []
             if current_depth >= max_depth > 0:  # max depth reached
                 return lambda x: x, []
 
-            entrycoll = aliased(cls.__collection_entry__)
-            additional_to_query = [cls.__metadata__, entrycoll]
+            entrycoll_alias = aliased(cls.__collection_entry__)
+            additional_to_query = [cls.__metadata__, entrycoll_alias] if not parent else [entrycoll_alias]
+            entry_alias = aliased(cls.__entry__, name=f"{cls.__entry__.__tablename__}_{current_depth}")
             children_resolved = []
 
-            for child in [cls.__entry__, cls.__metadata__]:
+            for child in [entry_alias, cls.__metadata__ if not parent else parent]:
                 if not default_check_joinable() or hasattr(child, 'join'):
-                    child_resolved, more_to_query = child.join(max_depth, current_depth + 1,
-                                                               [entrycoll.entry])
+                    child_resolved, more_to_query = child.join(child, max_depth, current_depth + 1,
+                                                               [entrycoll_alias.entry.of_type(entry_alias)])
                     children_resolved.append(child_resolved)
                     additional_to_query.extend(more_to_query)
 
             def resolve_query(initial_query):
-                resolved = initial_query.join(entrycoll)
-                resolved = resolved.outerjoin(cls.__entry__)
-                resolved = resolved.options(joinedload(entrycoll.entry))
-                resolved = resolved.options(joinedload(entrycoll.metadata_obj))
+                resolved = initial_query.join(entrycoll_alias)
+                resolved = resolved.outerjoin(aliased(cls.__entry__))
+                resolved = resolved.options(joinedload(entrycoll_alias.entry))
+                resolved = resolved.options(joinedload(entrycoll_alias.metadata_obj))
                 for child_resolved in children_resolved:
                     resolved = child_resolved(resolved)
                 return resolved

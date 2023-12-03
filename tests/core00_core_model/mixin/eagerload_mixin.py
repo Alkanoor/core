@@ -75,13 +75,20 @@ if __name__ == "__main__":
 
     logger.info("====== Now le grand jour ======")
     with get_session() as session:
+        logger.info("BASIC")
+        basic = BasicList.joined_collections(name='listeB')
+        logger.info(basic)
+
         logger.info("AND FINALLY")
         final = ComplexList.joined_collections(name='complexlisteC')
         logger.info(final)
 
+        logger.info("MOST COMPLEX")
         final_all = ComplexList.joined_collections(or_(BaseMetadata.name == 'complexlisteA',
                                                        BaseMetadata.name == 'complexlisteB'))
-        logger.info(final_all)
+        for L in final_all:
+            logger.info("ANOTHER ONE")
+            logger.info(L)
 
 
 # OK below
