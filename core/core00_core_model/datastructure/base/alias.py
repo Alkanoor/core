@@ -1,7 +1,5 @@
-from typing import List
-
-from ...policy.default_join import SQLJoinBehavior, default_check_joinable
 from ....core24_datastream.policy.function_call import CallingContractArguments, consume_arguments_method
+from ...policy.default_join import SQLJoinBehavior, default_check_joinable
 from ...mixin.instance_mixin.repository_mixin import RepositoryMixin
 from ...mixin.instance_mixin.eagerload_mixin import EagerloadMixin
 from ....core05_persistent_model.policy.session import get_session
@@ -10,8 +8,9 @@ from ...utils.column_type import column_to_type
 from ...mixin.base_mixin import BaseMixinsNoJoin
 from ...concept.named import Named
 
-from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr, joinedload, Query
-from sqlalchemy import Integer, ForeignKey, orm
+from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr, joinedload, aliased
+from sqlalchemy import ForeignKey, orm
+from typing import List
 
 
 class Aliases(*BaseMixinsNoJoin, Named):
@@ -65,7 +64,7 @@ def ALIAS(alias_target_class, alias_name: str, keep_full_name: bool = False):
         }
 
         @classmethod
-        def custom_join(cls, walked_classes: List[type], max_depth: int, current_depth: int,
+        def custom_join(cls, max_depth: int, current_depth: int,
                         join_path: List[type] | None = None):
             if current_depth < 0:  # no eager loading
                 return lambda x: x, []
@@ -73,28 +72,18 @@ def ALIAS(alias_target_class, alias_name: str, keep_full_name: bool = False):
                 return lambda x: x, []
 
             additional_to_query = []
-            walked_classes.append(cls)
-            if not is_simple:
-                walked_classes.append(cls.__metadata_target__)
             child_resolved = None
             if not default_check_joinable() or hasattr(cls.__target__, 'join'):
-                print("CHILD TO RESOLVE IN ALIAS", current_depth, cls.__target__)
-                child_resolved, more_to_query = cls.__target__.join(walked_classes, max_depth, current_depth + 1,
-                                                                    join_path)
-                print("WE THEN HAVE MORE TO QUERY (alias): ", current_depth, more_to_query, join_path)
+                child_resolved, more_to_query = cls.__target__.join(max_depth, current_depth + 1, join_path)
                 additional_to_query.extend(more_to_query)
 
             def resolve_query(initial_query):
-                print("in alias ", current_depth, join_path[0].class_, join_path[0].expression, cls.aliased.expression)
-                print(f"OUTER JOINING {cls.__metadata_target__.__tablename__}")
-                resolved = initial_query.outerjoin(cls.__metadata_target__)
-                #if not is_simple:
-                #    resolved = resolved.outerjoin(cls.__metadata_target__)
-                #print("in alias resolve1 ", str(resolved))
+                metadata = aliased(cls.__metadata_target__)
+                resolved = initial_query.outerjoin(metadata)
                 resolved = resolved.options(joinedload(*join_path, cls.aliased))
-                print("in alias resolve2 ", str(resolved))
                 if child_resolved:
                     resolved = child_resolved(resolved)
+                # resolved = resolved.group_by(getattr(metadata, metadata.primary_keys[0]))
                 return resolved
 
             return resolve_query, additional_to_query

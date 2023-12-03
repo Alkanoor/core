@@ -1,3 +1,5 @@
+from functools import reduce
+
 from ....core20_messaging.log.common_loggers import main_logger
 from ....core24_datastream.policy.function_call import CallingContractArguments, consume_arguments_method
 from ....core05_persistent_model.policy.session import commit_and_rollback_if_exception
@@ -9,8 +11,8 @@ from .representation_mixin import ReprMixin
 from .eagerload_mixin import EagerloadMixin
 from .session_mixin import SessionMixin
 
-from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr, joinedload
-from sqlalchemy import Integer, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr, joinedload, aliased
+from sqlalchemy import Integer, ForeignKey, orm
 from typing import List
 
 
@@ -57,7 +59,6 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
         def entry(cls) -> Mapped[entry_type]:
             return relationship(entry_type, foreign_keys=[cls.entry_id], backref='__' + cls.__tablename__)
 
-
     class CollectionMixin(EagerloadMixin):
 
         __metadata__ = metadata_type
@@ -70,56 +71,34 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
         }
 
         @classmethod
-        def custom_join(cls, walked_classes: List[type],
-                        max_depth: int, current_depth: int,
-                        join_path: List[type] | None = None):
+        def custom_join(cls, max_depth: int, current_depth: int, join_path: List[type] | None = None):
             if current_depth < 0:  # no eager loading
                 return lambda x: x, []
             if current_depth >= max_depth > 0:  # max depth reached
                 return lambda x: x, []
 
-            is_to_query = False
-            if not walked_classes:
-                is_to_query = True
-            additional_to_query = [cls.__collection_entry__]
-            walked_classes.append(cls.__collection_entry__)
+            entrycoll = aliased(cls.__collection_entry__)
+            additional_to_query = [cls.__metadata__, entrycoll]
             children_resolved = []
 
             for child in [cls.__entry__, cls.__metadata__]:
-                print("FOR CHILD ", current_depth, child, cls.__collection_entry__.entry)
                 if not default_check_joinable() or hasattr(child, 'join'):
-                    child_resolved, more_to_query = child.join(walked_classes, max_depth, current_depth + 1,
-                                                               [cls.__collection_entry__.entry])
-                    print("WE THEN HAVE MORE TO QUERY: ", current_depth, child)
+                    child_resolved, more_to_query = child.join(max_depth, current_depth + 1,
+                                                               [entrycoll.entry])
                     children_resolved.append(child_resolved)
                     additional_to_query.extend(more_to_query)
-                elif child == cls.__entry__:
-                    walked_classes.append(child)
 
             def resolve_query(initial_query):
-                #print("in collection resolve0 ", str(initial_query))
-                if not is_to_query:
-                    print(f"OUTER JOINING (ar) {cls.__collection_entry__.__tablename__}")
-                print(f"OUTER JOINING (ar) {cls.__entry__.__tablename__}")
-                if not is_to_query:
-                    resolved = initial_query.outerjoin(cls.__collection_entry__)
-                else:
-                    resolved = initial_query
+                resolved = initial_query.join(entrycoll)
                 resolved = resolved.outerjoin(cls.__entry__)
-                #print("in collection resolve1 ", str(resolved))
-                resolved = resolved.options(joinedload(cls.__collection_entry__.entry))
-                #print("in collection resolve2 ", str(resolved))
-                resolved = resolved.options(joinedload(cls.__collection_entry__.metadata_obj))
-                #print("in collection resolve3 ", str(resolved))
-                print("in array ", current_depth, cls.__collection_entry__.entry, cls.__collection_entry__.metadata_obj)
+                resolved = resolved.options(joinedload(entrycoll.entry))
+                resolved = resolved.options(joinedload(entrycoll.metadata_obj))
                 for child_resolved in children_resolved:
-                    print("resolving ", current_depth, child_resolved)
                     resolved = child_resolved(resolved)
-                print("anything to resolve ?", current_depth, resolved)
-                resolved = resolved.group_by(cls.__metadata__)
                 return resolved
 
             return resolve_query, additional_to_query
+
 
         @consume_arguments_method({
             'commit': (bool, CallingContractArguments.OneOrNone),
@@ -127,11 +106,35 @@ def CollectionMixin(collection_name, metadata_type, entry_type, is_set: bool = F
         })
         def __init__(self, commit: bool = True, metadata: metadata_type | None = None, **argv):
             if not metadata:
-                print("NO METADATA, GET CREATE RFROM ", argv)
                 metadata = metadata_type.get_create(commit, **argv)
             self.entries_initialized = False
             self.metadata = metadata
             self._entries = []
+
+        @classmethod
+        def joined_collections(cls, *args, **argv):  # warning this method is dangerous and should be called during join
+            all_entries = cls.get_join(*args, **argv)
+            if not all_entries:
+                return None
+
+            def aggregate_for_metadata(cur_dict, value):
+                per_root = cur_dict.setdefault(getattr(value[0], value[0].primary_keys[0]),
+                                               {'metadata': value[0], 'data': {}})['data']
+                # either the entry[1] (which is entry following custom_join) is an alias, or it's a normal object
+                per_root.setdefault(value[1].entry.aliased_id
+                                    if hasattr(value[1].entry, 'aliased_id') else value[1].entry.id,
+                                    value[1])
+                return cur_dict
+
+            per_metadata = reduce(aggregate_for_metadata, all_entries, {})
+            instances = []
+            for k, v in per_metadata.items():
+                instance = cls(v['metadata'])
+                instance._entries = list(v['data'].values())
+                instance.entries_initialized = True
+                instances.append(instance)
+            return instances
+
 
         @classmethod
         def create(cls, commit=True, **argv):

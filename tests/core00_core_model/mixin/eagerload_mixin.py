@@ -9,7 +9,8 @@ if __name__ == "__main__":
     from tests.core00_core_model.mixin.collection_mixin import create_list
     from core.core00_core_model.datastructure.base.alias import ALIAS
     from core.core20_messaging.log.common_loggers import debug_logger
-    from sqlalchemy.orm import joinedload, aliased
+    #from sqlalchemy.orm import joinedload, aliased
+    from sqlalchemy import or_
 
     logger = debug_logger()
 
@@ -41,16 +42,23 @@ if __name__ == "__main__":
                 n = random.choice([2, 5, 10])
                 for j in range(n):
                     lists[i].add(items[random.randint(0, 9)])
+        [session.add(l.metadata) for l in lists]
 
+        logger.info("PRINTING LISTS")
         for l in lists:
             logger.info(l)
+        logger.info("END PRINTING LISTS")
 
+    with get_session() as session:
+        logger.info(f"ALIAS_LIST from construct")
         list_alias = [ALIAS_LIST.get_from_construct(l) for l in lists]
+        logger.info(f"ALIAS_LIST from construct END")
 
         metadata_c1 = BaseMetadata.get_for(name='complexlisteA')
         init = metadata_c1 is None
         metadatas_c = []
         for i in range(3):
+            logger.info(f"ADDING COMPLEX LIST {i}")
             metadatas_c.append(BaseMetadata.get_create(name='complexliste' + chr(ord('A') + i)))
 
         complexlists = [ComplexList(metadatas_c[i]) for i in range(3)]
@@ -62,65 +70,18 @@ if __name__ == "__main__":
             for i in range(1,3):
                 complexlists[2].add(list_alias[i])
 
+        logger.info("PRINT COMPLEX LISTS")
         logger.info(complexlists)
 
     logger.info("====== Now le grand jour ======")
-
-    logger.info((dir(ComplexList.__collection_entry__.entry), ComplexList.__entry__.__target__.__collection_entry__.__tablename__))
-    logger.info(ComplexList.__entry__.__metadata_target__.__tablename__)
-    logger.info(ComplexList.__entry__.aliased)
     with get_session() as session:
-        A = ComplexList.__collection_entry__
-        B = ComplexList.__entry__  # alias
-        C = ComplexList.__entry__.__metadata_target__  # metadata (de collection de l'alias)
-        D = ComplexList.__entry__.__target__.__collection_entry__  # collection entries de la coll de l'alias
-        E = ComplexList.__entry__.__target__.__entry__  # entry finale finale de la collection
-        logger.info((ComplexList.__entry__.__target__.__metadata__, ComplexList.__entry__.__metadata_target__))
-        print("AOAOAOAO, ", A.__tablename__, B.__tablename__, C.__tablename__, D.__tablename__, E.__tablename__)
-        print("BOBOBOBO", A.entry.expression, B.aliased.expression)
-        res = session.query(A, D) \
-            .filter_by(metadata_id='complexlisteA') \
-            .outerjoin(B) \
-            .options(joinedload(A.entry)) \
-            .options(joinedload(A.metadata_obj)) \
-            .outerjoin(C) \
-            .options(joinedload(A.entry, B.aliased)) \
-            .outerjoin(D) \
-            .options(joinedload(D.entry)) \
-            .options(joinedload(D.metadata_obj)) \
-            .outerjoin(E)
-        logger.info(("xxx", str(res)))
-        output2 = res.all()
-        output = res.group_by(C.name).all()
-        logger.info(len(output))
-        o1 = output[0]
-        logger.info(type(o1[0]))
-        logger.info(o1[0])
-        for x in output:
-            logger.info(x[0].entry.entries)
-        for x in output:
-            logger.info(x[1])
-
         logger.info("AND FINALLY")
-        final = ComplexList.get_join(metadata_id='complexlisteC')
-        for f in final:
-            logger.info("f")
-            logger.info(f[0])
-    exit()
+        final = ComplexList.joined_collections(name='complexlisteC')
+        logger.info(final)
 
-    with get_session() as session:
-        res = session.query(ComplexList.__collection_entry__) \
-            .options(joinedload(ComplexList.__collection_entry__.entry)) \
-            .filter_by(metadata_id='complexlisteA') \
-            .options(joinedload(ComplexList.__collection_entry__.entry, ComplexList.__entry__.aliased)) \
-            .outerjoin(ComplexList.__entry__.__target__.__collection_entry__,
-                       onclause=ComplexList.__entry__.__target__.__collection_entry__.metadata_id == ComplexList.__entry__.aliased_id) \
-            .outerjoin(ComplexList.__entry__.__target__.__collection_entry__,
-                       onclause=ComplexList.__entry__.__target__.__collection_entry__.metadata_id == ComplexList.__entry__.aliased_id)
-        print("xxx", res, res.all())
-
-    full_joined_complex = ComplexList.get_join(name='complexlisteC')
-    logger.info(full_joined_complex)
+        final_all = ComplexList.joined_collections(or_(BaseMetadata.name == 'complexlisteA',
+                                                       BaseMetadata.name == 'complexlisteB'))
+        logger.info(final_all)
 
 
 # OK below
@@ -145,3 +106,47 @@ if __name__ == "__main__":
 #     .options(joinedload(A.entry, B.aliased)) \
 #     .options(joinedload(D.entry)) \
 #     .options(joinedload(D.metadata_obj))
+
+# Same: OK
+# A = ComplexList.__collection_entry__
+# B = ComplexList.__entry__  # alias
+# C = ComplexList.__entry__.__metadata_target__  # metadata (de collection de l'alias)
+# D = ComplexList.__entry__.__target__.__collection_entry__  # collection entries de la coll de l'alias
+# E = ComplexList.__entry__.__target__.__entry__  # entry finale finale de la collection
+# logger.info((ComplexList.__entry__.__target__.__metadata__, ComplexList.__entry__.__metadata_target__))
+# res = session.query(A, D) \
+#     .filter_by(metadata_id='complexlisteA') \
+#     .outerjoin(B) \
+#     .options(joinedload(A.entry)) \
+#     .options(joinedload(A.metadata_obj)) \
+#     .outerjoin(C) \
+#     .options(joinedload(A.entry, B.aliased)) \
+#     .outerjoin(D) \
+#     .options(joinedload(D.entry)) \
+#     .options(joinedload(D.metadata_obj)) \
+#     .outerjoin(E)
+
+
+# # Same: OK
+# A = ComplexList.__collection_entry__
+# B = ComplexList.__entry__  # alias
+# C = ComplexList.__entry__.__metadata_target__  # metadata (de collection de l'alias)
+# D = ComplexList.__entry__.__target__.__collection_entry__  # collection entries de la coll de l'alias
+# E = ComplexList.__entry__.__target__.__entry__  # entry finale finale de la collection
+# logger.info((ComplexList.__entry__.__target__.__metadata__, ComplexList.__entry__.__metadata_target__))
+# CAlias = aliased(C)
+# res = session.query(C, A, D) \
+#     .filter(C.name == 'complexlisteA') \
+#     .outerjoin(A) \
+#     .outerjoin(B) \
+#     .options(joinedload(A.entry)) \
+#     .options(joinedload(A.metadata_obj)) \
+#     .outerjoin(CAlias) \
+#     .group_by(CAlias.name) \
+#     .options(joinedload(A.entry, B.aliased)) \
+#     .outerjoin(D) \
+#     .options(joinedload(D.entry)) \
+#     .options(joinedload(D.metadata_obj)) \
+#     .outerjoin(E)
+# print(f"BEFORE: {res}")
+# print(f"After: {res.all()}")

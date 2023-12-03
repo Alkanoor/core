@@ -53,11 +53,6 @@ def consume_arguments(rules_dict, permit_multiple_types: bool = False, is_method
                                           f" (permit_multiple_types = False)"
             per_type[item[0]].append((key, item))
 
-    print("ppppppppppp")
-    for k in per_type:
-        print(k)
-        print(per_type[k])
-
     all_types = list(per_type.keys())
     def decorator(f):
         @wraps(f)
