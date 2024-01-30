@@ -12,7 +12,7 @@ import os.path
 # @register_policy('.config.default_config_paths')
 @context_dependencies(('.executor.os', str), ('.executor.uid', int), ('.executor.gid', int))
 def default_config_paths(ctxt: Context):
-    if 'win' in ctxt['executor']['os']:
+    if 'win' in ctxt['executor']['os'] and not 'darwin' in ctxt['executor']['os']:
         return [path.expandvars('%APPDATA%\\mgr\\config.yml'), path.expandvars('%APPDATA%\\mgr\\config.ini')]
     else:
         if ctxt['executor']['uid'] == 0 or ctxt['executor']['gid'] == 0:  # quick & dirty way to know we are root
@@ -25,7 +25,7 @@ def default_config_paths(ctxt: Context):
 
 @context_dependencies(('.executor.os', str), ('.executor.uid', int), ('.executor.gid', int))
 def default_database_paths(ctxt: Context):
-    if 'win' in ctxt['executor']['os']:
+    if 'win' in ctxt['executor']['os']and not 'darwin' in ctxt['executor']['os']:
         return [path.expandvars('%APPDATA%\\mgr\\state.db')]
     else:
         if ctxt['executor']['uid'] == 0 or ctxt['executor']['gid'] == 0:
@@ -35,11 +35,11 @@ def default_database_paths(ctxt: Context):
 
 @context_dependencies(('.executor.os', str))
 def default_database_url(ctxt: Context):
-    if 'win' in ctxt['executor']['os']:
-        return [f"sqlite:///{path}" if path[1] == ':' and path[2] == '\\' else f"sqlite://{path}"
+    if 'win' in ctxt['executor']['os']and not 'darwin' in ctxt['executor']['os']:
+        return [f"sqlite:////{path}" if path[1] == ':' and path[2] == '\\' else f"sqlite:///{path}"
                 for path in default_database_paths()]
     else:
-        return [f"sqlite://{path}" for path in default_database_paths()]
+        return [f"sqlite:///{path}" for path in default_database_paths()]
 
 register_config_default('.database', str, default_database_url()[0])
 

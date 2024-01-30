@@ -75,7 +75,7 @@ def _construct_engine(ctxt: Context, engine_url, echo, sqlite, first_time=True, 
     except Exception as e:
         if first_time:
             if sqlite:
-                fname = engine_url.split('://')[-1].split('?')[0]
+                fname = engine_url.split(':///')[-1].split('?')[0]
                 try:
                     check_file_access(fname)
                 except Exception as e:

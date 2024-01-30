@@ -1,5 +1,5 @@
-from core.core02_model.typed.service import TCPService
-from core.core02_model.typed.file import File
+from ...core02_model.typed.service import TCPService
+from ...core02_model.typed.file import File
 
 from pydantic import BaseModel
 from typing import Literal
